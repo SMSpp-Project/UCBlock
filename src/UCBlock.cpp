@@ -1248,9 +1248,13 @@ void UCBlock::set_node_injection_bounds( void )
    const auto p_mx = eta * ub->get_max_power( t , generator );
    auto fixed_consumption = c ? nullptr
                               : ub->get_fixed_consumption( generator );
-   min_node_injection[ node ] += mult * std::min( { p_mn , p_mx ,
-			   fixed_consumption ? - fixed_consumption[ t ] : 0 } );
-   max_node_injection[ node ] += mult * std::max( { 0.0 , p_mn , p_mx } );
+   const auto lo = std::min(
+     { p_mn , p_mx , fixed_consumption ? -fixed_consumption[ t ] : 0 } );
+   const auto hi = std::max( { 0.0 , p_mn , p_mx } );
+   // an infinite side stays infinite whatever mult is (also 0, where the
+   // product would be NaN), as the unit stays free [see BatteryUnitBlock]
+   min_node_injection[ node ] += std::isinf( lo ) ? lo : mult * lo;
+   max_node_injection[ node ] += std::isinf( hi ) ? hi : mult * hi;
    }
 
   for( Index node = 0 ; node < nodes ; ++node ) {
@@ -1300,8 +1304,9 @@ void UCBlock::set_node_injection_bounds( void )
      q_mn += std::min( 0.0 , tub->get_min_reactive_power_on( t , generator ) );
      q_mx += std::max( 0.0 , tub->get_max_reactive_power_on( t , generator ) );
      }
-    min_node_injection[ node ] += mult * q_mn;
-    max_node_injection[ node ] += mult * q_mx;
+    // an infinite side stays infinite whatever mult is, as the active ones
+    min_node_injection[ node ] += std::isinf( q_mn ) ? q_mn : mult * q_mn;
+    max_node_injection[ node ] += std::isinf( q_mx ) ? q_mx : mult * q_mx;
     }
 
    for( Index node = 0 ; node < nbi->get_number_nodes() ; ++node ) {
@@ -2629,7 +2634,10 @@ double UCBlock::injection_bounds_linearization( Index unit ,
  double linearization = 0;
  const auto add = [ & ]( const BoxConstraint & row , double mn , double mx ) {
   const auto dual = row.get_dual();
-  linearization -= dual * factor * ( ( obj_sign * dual > 0 ) ? mn : mx );
+  const auto side = ( obj_sign * dual > 0 ) ? mn : mx;
+  // an infinite side, as that of a power with no limit, gives no term
+  if( ( dual != 0 ) && ( ! std::isinf( side ) ) )
+   linearization -= dual * factor * side;
   };
 
  for( Index c = 0 ; c < get_number_carriers() ; ++c ) {

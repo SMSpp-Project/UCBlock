@@ -2677,7 +2677,8 @@ class DCNetworkData : public NetworkData
 			       ? get_min_power_flow( line )
 			       : get_max_power_flow( line ) );
 
-  return( - dual * bound );
+  // an infinite limit gives no term, whatever the dual, as does a zero dual
+  return( ( dual == 0 ) || std::isinf( bound ) ? 0.0 : -dual * bound );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

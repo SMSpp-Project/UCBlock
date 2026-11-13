@@ -61,6 +61,20 @@
 
 using namespace SMSpp_di_unipi_it;
 
+/*--------------------------------------------------------------------------*/
+
+namespace
+{
+
+// kappa times a flow limit, an infinite limit staying infinite whatever
+// kappa is (also 0, where the product would be NaN), as in BatteryUnitBlock
+double kappa_bound( double kappa , double bound )
+{
+ return( std::isinf( bound ) ? bound : kappa * bound );
+ }
+
+}  // end( unnamed namespace )
+
 using SpMat = Eigen::SparseMatrix< double >;
 
 /*--------------------------------------------------------------------------*/
@@ -1624,6 +1638,17 @@ void DCNetworkBlock::generate_bound_constraints( void )
    const double Pmn   = get_min_power_flow( l );
    const double Pmx   = get_max_power_flow( l );
 
+   // the design multiplies the limits in its rows, where an infinite one
+   // would be an infinite coefficient
+   if( std::isinf( Pmn ) || std::isinf( Pmx ) )
+    throw( std::logic_error( classname() +
+			     "::generate_bound_constraints: "
+			     "line " +
+			     std::to_string( l ) +
+			     " has a design "
+			     "variable and an infinite flow limit, which is "
+			     "not supported" ) );
+
    // LOWER:  F_l - kappa * C_v * Pmn * x_l >= 0
    if( const Index min_row = v_design_min_row[ l ] ; min_row < Inf< Index >() ) {
     vars.emplace_back( & v_power_flow[ l ] , 1.0 );
@@ -1682,11 +1707,11 @@ void DCNetworkBlock::generate_bound_constraints( void )
     continue;
 
    const double kappa = get_kappa( l );
-   v_power_flow_limit_const[ l ].set_lhs( kappa * f_C_v_scal *
-					  get_min_power_flow( l ) );
-   v_power_flow_limit_const[ l ].set_rhs( design ? Inf< double >() :
-					  kappa * f_C_v_scal *
-					  get_max_power_flow( l ) );
+   v_power_flow_limit_const[ l ].set_lhs(
+     kappa_bound( kappa * f_C_v_scal , get_min_power_flow( l ) ) );
+   v_power_flow_limit_const[ l ].set_rhs(
+     design ? Inf< double >()
+	    : kappa_bound( kappa * f_C_v_scal , get_max_power_flow( l ) ) );
    v_power_flow_limit_const[ l ].set_variable( &v_power_flow[ l ] );
    }
 
@@ -2735,10 +2760,10 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
    }
   else {
    // Constraints *without* design variable: simple bounds update
-   v_power_flow_limit_const[ i ].set_lhs( kappa * f_C_v_scal *
-					  get_min_power_flow( i ) , nAM );
-   v_power_flow_limit_const[ i ].set_rhs( kappa * f_C_v_scal *
-					  get_max_power_flow( i ) , nAM );
+   v_power_flow_limit_const[ i ].set_lhs(
+     kappa_bound( kappa * f_C_v_scal , get_min_power_flow( i ) ) , nAM );
+   v_power_flow_limit_const[ i ].set_rhs(
+     kappa_bound( kappa * f_C_v_scal , get_max_power_flow( i ) ) , nAM );
     }
   }
  close_channel( par2chnl( nAM ) );

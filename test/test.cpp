@@ -12597,6 +12597,350 @@ static void test_battery_kappa_infinite_storage( void )
  delete bu;
  }
 
+/*--------------------------------------------------------------------------*/
+/* get_kappa_linearization() of a battery with infinite bounds, with the
+ * duals that a Solver leaves on rows that bound nothing: noise of the order
+ * of 1e-16, of either sign, here on every row. An infinite side gives no
+ * term, so the linearization is finite, and as small as the noise times the
+ * finite bounds. Once the storage is infinite, once the power, as in the
+ * Store of PyPSA. */
+
+static void test_battery_kappa_noise_duals( void )
+{
+ using Data = std::vector< std::pair< std::string , std::vector< double > > >;
+ const std::vector< std::pair< std::string , Data > > cases = {
+  { "infinite storage" ,
+    { { "MinStorage" , { -INF , -INF } } ,
+      { "MaxStorage" , { INF , INF } } ,
+      { "MinPower" , { -10 , -10 } } ,
+      { "MaxPower" , { 10 , 10 } } } } ,
+  { "infinite power" ,
+    { { "MinStorage" , { 0 , 0 } } ,
+      { "MaxStorage" , { 50 , 50 } } ,
+      { "MinPower" , { -INF , -INF } } ,
+      { "MaxPower" , { INF , INF } } } } ,
+  { "infinite power, C-rates 0" ,
+    { { "MinStorage" , { 0 , 0 } } ,
+      { "MaxStorage" , { 50 , 50 } } ,
+      { "MinPower" , { -INF , -INF } } ,
+      { "MaxPower" , { INF , INF } } ,
+      { "MaxCRateCharge" , { 0 } } ,
+      { "MaxCRateDischarge" , { 0 } } } }
+  };
+
+ for( const auto & [ what , data ] : cases ) {
+  auto bu = new_BU( 2 , data );
+  if( ! bu ) {
+   check( false , "battery, " + what + ", noise duals: not read" );
+   continue;
+   }
+  generate_all( bu );
+  std::vector< ColVariable * > vars;
+  std::vector< RowConstraint * > rows;
+  tree_of( bu , vars , rows );
+  for( const double noise : { 1e-16 , -1e-16 } ) {
+   for( auto r : rows )
+    r->set_dual( noise );
+   const double l = bu->get_kappa_linearization();
+   check( std::isfinite( l ) && ( std::abs( l ) < 1e-12 ) ,
+	  "battery, " + what + ", duals " + str( noise ) +
+	    ": kappa linearization " + str( l ) );
+   }
+  delete bu;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The bounds of the node injections of an ECNetworkBlock whose only unit is
+ * a battery of power in [ - inf , + inf ], as the Store of PyPSA: they are
+ * infinite, not NaN, also at kappa 0, where the unit is still free [see
+ * BatteryUnitBlock], and the derivative with respect to the kappa is finite
+ * with the duals 0 and with a noise of either sign on the bound of the
+ * node, an infinite side giving no term. */
+
+static void test_injection_bounds_infinite_store( void )
+{
+ using QrySbst =
+   Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & , bool >;
+ using SetSbst =
+   Block::FunctionType< Block::MF_dbl_sp , Block::Subset && , bool >;
+ const std::string tag = "injection bounds, infinite store";
+
+ auto g = new_group( "UCECS" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 1 );
+ g.addDim( "NumberUnits" , 1 );
+ auto N = g.addDim( "NumberNodes" , 2 );
+ auto G = g.addDim( "NumberElectricalGenerators" , 1 );
+ g.addDim( "NumberNetworks" , 1 );
+ g.addDim( "NumberIntervals" , 1 );
+ for( const auto & [ name , value ] :
+      { std::pair< const char * , const char * >( "NetworkBlockClassname" ,
+						 "ECNetworkBlock" ) ,
+	std::pair< const char * , const char * >( "NetworkDataClassname" ,
+						 "ECNetworkData" ) } )
+  g.addVar( name , netCDF::NcString() ).putVar( &value );
+ put( g , "ActivePowerDemand" , { N , TH } , { 0 , 50 } );
+ put( g , "SellPrice" , 50.0 );
+ put( g , "BuyPrice" , 200.0 );
+ put( g , "RewardPrice" , 100.0 );
+ put( g , "PeakTariff" , 0.0 );
+ put_int( g , "GeneratorNode" , G , { 0 } );
+ auto u = g.addGroup( "UnitBlock_0" );
+ u.putAtt( "type" , "BatteryUnitBlock" );
+ put( u , "MinPower" , -INF );
+ put( u , "MaxPower" , INF );
+ put( u , "MinStorage" , 0.0 );
+ put( u , "MaxStorage" , 50.0 );
+
+ std::unique_ptr< UCBlock > uc(
+   dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ if( ! uc ) {
+  check( false , tag + ": the UCBlock is not read" );
+  return;
+  }
+ generate_all( uc.get() );
+ auto rows =
+   uc->get_network_block( 0 )->get_static_constraint< BoxConstraint , 2 >(
+     "Node_Injection_Bound_Const_Network" );
+ const auto setter = Block::get_method< SetSbst >( "UCBlock::resize_unit" );
+ const auto getter =
+   Block::get_method< QrySbst >( "UCBlock::get_resize_unit_linearization" );
+ if( ! ( rows && setter && getter ) ) {
+  check( false , tag + ": no rows of the bounds, or the methods are not "
+		      "registered" );
+  return;
+  }
+ auto & row = ( *rows )[ 0 ][ 0 ];
+
+ for( const double kappa : { 1.0 , 0.0 } ) {
+  const std::vector< double > f = { kappa };
+  std::invoke( *setter , uc.get() , Block::MF_dbl_sp( f ) ,
+	       Block::Subset{ 0 } ,
+	       true , eNoBlck , eNoBlck );
+  const std::string at = tag + ", kappa " + str( kappa );
+  check( ( row.get_lhs() == -INF ) && ( row.get_rhs() == INF ) ,
+	 at + ": the bound of node 0 is [ " + str( row.get_lhs() ) + " , " +
+	   str( row.get_rhs() ) + " ], not [ - inf , + inf ]" );
+  for( const double dual : { 0.0 , 1e-16 , -1e-16 } ) {
+   row.set_dual( dual );
+   double d = 7;
+   std::invoke( *getter , uc.get() , Block::MF_dbl_msp( &d , 1 ) ,
+		Block::Subset{ 0 } , true );
+   check( std::isfinite( d ) ,
+	  at + ", dual " + str( dual ) + ": the derivative is " + str( d ) );
+   }
+  row.set_dual( 0 );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* An infinite power or flow limit with a design is refused, since the design
+ * multiplies it in its rows, where it would be an infinite coefficient: an
+ * IntermittentUnitBlock with InvestmentCost and an infinite MaxPower is not
+ * read, and one with a finite MaxPower refuses an infinite one in
+ * set_maximum_power(); a DCNetworkBlock line with a design variable and an
+ * infinite MaxPowerFlow throws when its rows are generated. */
+
+static void test_design_infinite_refused( void )
+{
+ const auto refused = []( const std::function< void( void ) > & f ) {
+  try {
+   f();
+   }
+  catch( const std::exception & ) {
+   return( true );
+   }
+  return( false );
+  };
+
+ const auto iu_group = []( double maxp ) {
+  auto g = new_group( "IUDES" , true );
+  g.putAtt( "type" , "IntermittentUnitBlock" );
+  auto T = g.addDim( "TimeHorizon" , 2 );
+  put( g , "MaxPower" , T , { maxp , maxp } );
+  put( g , "InvestmentCost" , 1 );
+  return( g );
+  };
+
+ // Block::new_Block() reports the exception and gives no Block
+ check( refused( [ & ]() {
+	 auto b = Block::new_Block( iu_group( INF ) );
+	 delete b;
+	 if( ! b )
+	  throw( std::logic_error( "not read" ) );
+	 } ) ,
+	"intermittent with a design and an infinite power: read" );
+
+ std::unique_ptr< IntermittentUnitBlock > iu(
+   dynamic_cast< IntermittentUnitBlock * >(
+     Block::new_Block( iu_group( 5 ) ) ) );
+ if( ! iu )
+  check( false , "intermittent with a design and a finite power: not read" );
+ else {
+  const std::vector< double > p = { INF };
+  check( refused( [ & ]() {
+	  iu->set_maximum_power( Block::MF_dbl_sp( p ) , Block::Subset{ 0 } ,
+				 true );
+	  } ) ,
+	 "intermittent with a design: an infinite power accepted by the "
+	 "Subset setter" );
+  check( refused( [ & ]() {
+	  iu->set_maximum_power( Block::MF_dbl_sp( p ) ,
+				 Block::Range( 0 , 1 ) );
+	  } ) ,
+	 "intermittent with a design: an infinite power accepted by the "
+	 "Range setter" );
+  }
+
+ auto g = write_net( "DCNetworkBlock" , 2 , { { 0 , 1 , 0 , -5 , INF } } ,
+		     { 0 , 0 } );
+ std::unique_ptr< DCNetworkBlock > nb(
+   dynamic_cast< DCNetworkBlock * >( Block::new_Block( g ) ) );
+ std::vector< ColVariable > x( 1 );
+ Subset which = { 0 };
+ nb->set_design_variables( &x , &which );
+ SimpleConfiguration< int > kirchhoff( 2 );
+ nb->generate_abstract_variables( &kirchhoff );
+ check( refused( [ & ]() { nb->generate_abstract_constraints(); } ) ,
+	"line with a design and an infinite flow limit: rows generated" );
+ }
+
+static netCDF::NcGroup
+write_ac_uc( Index nodes ,
+	     const std::vector< std::pair< int , int > > & lines ,
+	     const std::vector< double > & dem , double qdem );
+
+/*--------------------------------------------------------------------------*/
+/* The same infinite bounds elsewhere, with no design: an IntermittentUnitBlock
+ * of power + inf and a DCNetworkBlock line with flow limits - inf and + inf
+ * keep infinite, not NaN, the sides of their rows at kappa 0, and their
+ * derivatives with respect to the kappa are finite with the duals 0 and with
+ * a noise of either sign on every row; the bounds of the reactive node
+ * injections of the ACNetworkBlock of write_ac_uc(), whose thermal unit has
+ * reactive power in [ - inf , + inf ], stay infinite with no copies. */
+
+static void test_infinite_bounds_elsewhere( void )
+{
+ const auto noise = [ & ]( Block * b , const std::string & what ,
+			   const std::function< double( void ) > & lin ) {
+  std::vector< ColVariable * > vars;
+  std::vector< RowConstraint * > rows;
+  tree_of( b , vars , rows );
+  for( const double dual : { 0.0 , 1e-16 , -1e-16 } ) {
+   for( auto r : rows )
+    r->set_dual( dual );
+   const double l = lin();
+   check( std::isfinite( l ) , what + ", duals " + str( dual ) +
+				": the derivative is " + str( l ) );
+   }
+  };
+
+ const auto free_row = []( const RowConstraint & r ) {
+  return( ( ( r.get_lhs() == -INF ) || ( r.get_rhs() == INF ) ) &&
+	   ( ! std::isnan( r.get_lhs() ) ) &&
+	   ( ! std::isnan( r.get_rhs() ) ) );
+  };
+
+ // the intermittent unit
+ {
+  auto g = new_group( "IUINF" , true );
+  g.putAtt( "type" , "IntermittentUnitBlock" );
+  auto T = g.addDim( "TimeHorizon" , 2 );
+  put( g , "MaxPower" , T , { INF , INF } );
+  auto iu = dynamic_cast< IntermittentUnitBlock * >( Block::new_Block( g ) );
+  if( ! iu )
+   check( false , "intermittent of infinite power: not read" );
+  else {
+   generate_all( iu );
+   for( const double kappa : { 1.0 , 0.0 } ) {
+    iu->set_kappa( kappa );
+    const auto & rows = iu->get_active_power_bound_constraints();
+    check( ( ! rows.empty() ) && free_row( rows[ 0 ] ) ,
+	   "intermittent of infinite power, kappa " + str( kappa ) +
+	     ": the bound of the power is not free" );
+    noise( iu , "intermittent of infinite power, kappa " + str( kappa ) ,
+	   [ & ]() { return( iu->get_kappa_linearization() ); } );
+    }
+   delete iu;
+   }
+  }
+
+ // the line
+ {
+  auto g =
+    write_net( "DCNetworkBlock" , 2 , { { 0 , 1 , 1.0 , -INF , INF } } ,
+	       { 0 , 0 } );
+  auto nb = new_net( g , 2 );
+  const auto setter = Block::get_method<
+    Block::FunctionType< Block::MF_dbl_sp , Block::Subset && , bool > >(
+    "DCNetworkBlock::resize" );
+  const auto getter = Block::get_method<
+    Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & , bool > >(
+    "DCNetworkBlock::get_resize_linearization" );
+  if( ! ( setter && getter ) )
+   check( false , "line of infinite limits: the methods are not registered" );
+  else
+   for( const double kappa : { 1.0 , 0.0 } ) {
+    const std::vector< double > k = { kappa };
+    std::invoke( *setter , nb , Block::MF_dbl_sp( k ) , Block::Subset{ 0 } ,
+		 true ,
+		 eNoBlck , eNoBlck );
+    const auto & rows = nb->get_power_flow_limit_HVDC_bounds();
+    check( ( ! rows.empty() ) && free_row( rows[ 0 ] ) ,
+	   "line of infinite limits, kappa " + str( kappa ) +
+	     ": the limit of the flow is not free" );
+    noise( nb , "line of infinite limits, kappa " + str( kappa ) , [ & ]() {
+     double d = 7;
+     std::invoke( *getter , nb , Block::MF_dbl_msp( &d , 1 ) ,
+		  Block::Subset{ 0 } ,
+		  true );
+     return( d );
+     } );
+    }
+  delete nb;
+  }
+
+ // the reactive injections
+ {
+  auto g = write_ac_uc( 2 , { { 0 , 1 } } , { 5 , 5 } , 0.5 );
+  auto u = g.getGroup( "UnitBlock_0" );
+  const double minus_inf = -INF;
+  u.getVar( "MinReactivePower" ).putVar( &minus_inf );
+  u.getVar( "MaxReactivePower" ).putVar( &INF );
+  std::unique_ptr< UCBlock > uc(
+    dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+  const auto setter = Block::get_method<
+    Block::FunctionType< Block::MF_dbl_sp , Block::Subset && , bool > >(
+    "UCBlock::replicate" );
+  if( ! ( uc && setter ) )
+   check( false ,
+	  "reactive injections, infinite reactive power: the "
+	  "UCBlock is not read, or UCBlock::replicate is not registered" );
+  else {
+   generate_all( uc.get() );
+   auto rows =
+     uc->get_network_block( 0 )->get_static_constraint_v< BoxConstraint >(
+       "Reactive_Node_Injection_Bound_Const_Network" );
+   for( const double copies : { 1.0 , 0.0 } ) {
+    const std::vector< double > f = { copies };
+    std::invoke( *setter , uc.get() , Block::MF_dbl_sp( f ) ,
+		 Block::Subset{ 0 } ,
+		 true , eNoBlck , eNoBlck );
+    check( rows && ( ! rows->empty() ) &&
+	     ( ( *rows )[ 0 ].get_lhs() == -INF ) &&
+	     ( ( *rows )[ 0 ].get_rhs() == INF ) ,
+	   "reactive injections, infinite reactive power, copies " +
+	     str( copies ) + ": the bound of node 0 is not [ - inf , + inf ]" +
+	     ( rows && ( ! rows->empty() )
+		 ? ", it is [ " + str( ( *rows )[ 0 ].get_lhs() ) + " , " +
+		     str( ( *rows )[ 0 ].get_rhs() ) + " ]"
+		 : std::string() ) );
+    }
+   }
+  }
+ }
+
 /* Tests of fvfix-NET, to be put in wt-ucb/test/test.cpp next to
  * test_ac_flow_group() (they use write_net(), new_net(), NetLine, put*(),
  * new_group(), check(), close(), str()).
@@ -18642,6 +18986,10 @@ int main( int argc , char ** argv )
   test_battery_design_ub();
   test_battery_design_zero_max();
   test_battery_kappa_infinite_storage();
+  test_battery_kappa_noise_duals();
+  test_injection_bounds_infinite_store();
+  test_infinite_bounds_elsewhere();
+  test_design_infinite_refused();
 
   test_nuclear_DP_throw_releases_lock();
   test_nuclear_DP_initial_power_reload();

@@ -20,12 +20,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   network cost, and its two rows `power_flow_relax_abs`, only for the
   lines whose flow can be negative (`MinPowerFlow` < 0): on the other lines
   `| F_l | = F_l`, and the cost goes on the flow. On a sector-coupled
-  PyPSA-Eur network with 348 lines, 43 of which can have a negative flow,
+  network with 348 lines, 43 of which can have a negative flow,
   those rows were about 40% of the rows. `get_auxiliary_variable()` has
   one element for each such line, in the order of the lines, and
   `set_auxiliary_variable()` takes as many; the netCDF format of
   `DCNetworkBlockSolution` does not change, `AuxiliaryValue` keeping one
   entry for each line, the flow for a line with no auxiliary variable
+
+### Fixed
+
+- an infinite bound, as that of a storage with no power limit, gives no
+  term in the derivatives with respect to the size of a unit or of a line,
+  whatever the dual of its row: `BatteryUnitBlock::get_kappa_linearization()`,
+  on the bounds of the active power, also with a C-rate 0, and of the
+  storage level, `IntermittentUnitBlock::get_kappa_linearization()`,
+  `DCNetworkBlock::get_resize_linearization()` and
+  `UCBlock::get_resize_unit_linearization()`, on the bounds of the node
+  injections, gave `inf` or `nan` with the duals of the order of 1e-16
+  that a Solver leaves on rows that bound nothing, and all but the first
+  also with a zero dual
+- an infinite bound stays infinite at kappa 0, as it does in the rows of
+  `BatteryUnitBlock`, rather than being `nan` (0 times infinity): the power
+  bounds of an `IntermittentUnitBlock` with no design, the flow limits of a
+  `DCNetworkBlock` line with no design, and the bounds of the active and
+  reactive node injections that `UCBlock` writes for a unit with an
+  infinite power or reactive power
+- an `IntermittentUnitBlock` with a design (`InvestmentCost` != 0) refuses
+  an infinite `MaxPower` or `MinPower`, when it is read and in
+  `set_maximum_power()`, and a `DCNetworkBlock` line with a design variable
+  an infinite flow limit, when the rows are generated: the design multiplies
+  them in its rows, where they were infinite coefficients
 
 ## [0.11.0] - 2026-11-03
 
