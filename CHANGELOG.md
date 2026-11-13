@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- the unit test checks the Solution of a `DCNetworkBlock` with a priced
+  network and a line whose flow cannot be negative, also through netCDF,
+  and the pricing of a network whose abstract representation was generated
+  with no priced line
+
+### Changed
+
+- `DCNetworkBlock` generates the auxiliary variable `V_l >= | F_l |` of the
+  network cost, and its two rows `power_flow_relax_abs`, only for the
+  lines whose flow can be negative (`MinPowerFlow` < 0): on the other lines
+  `| F_l | = F_l`, and the cost goes on the flow. On a sector-coupled
+  PyPSA-Eur network with 348 lines, 43 of which can have a negative flow,
+  those rows were about 40% of the rows. `get_auxiliary_variable()` has
+  one element for each such line, in the order of the lines, and
+  `set_auxiliary_variable()` takes as many; the netCDF format of
+  `DCNetworkBlockSolution` does not change, `AuxiliaryValue` keeping one
+  entry for each line, the flow for a line with no auxiliary variable
+
 ## [0.11.0] - 2026-11-03
 
 ### Added
