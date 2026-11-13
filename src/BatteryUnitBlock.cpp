@@ -2885,8 +2885,10 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
      linearization += term( - alpha_out * f_MaxCRateDischarge , max_power );
     }
    else {
-    const auto lower = f_MaxCRateCharge * min_power;
-    const auto upper = f_MaxCRateDischarge * max_power;
+    // the fences of the rows [see update_kappa_in_cnstrs()]: an infinite
+    // power stays infinite whatever the C-rate is (also 0)
+    const auto lower = kappa_bound( f_MaxCRateCharge , min_power );
+    const auto upper = kappa_bound( f_MaxCRateDischarge , max_power );
 
     const auto alpha = intake_bound_constraints[ t ].get_dual();
     linearization += ( f_kappa == 0 )

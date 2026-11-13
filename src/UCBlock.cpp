@@ -1304,8 +1304,9 @@ void UCBlock::set_node_injection_bounds( void )
      q_mn += std::min( 0.0 , tub->get_min_reactive_power_on( t , generator ) );
      q_mx += std::max( 0.0 , tub->get_max_reactive_power_on( t , generator ) );
      }
-    min_node_injection[ node ] += mult * q_mn;
-    max_node_injection[ node ] += mult * q_mx;
+    // an infinite side stays infinite whatever mult is, as the active ones
+    min_node_injection[ node ] += std::isinf( q_mn ) ? q_mn : mult * q_mn;
+    max_node_injection[ node ] += std::isinf( q_mx ) ? q_mx : mult * q_mx;
     }
 
    for( Index node = 0 ; node < nbi->get_number_nodes() ; ++node ) {

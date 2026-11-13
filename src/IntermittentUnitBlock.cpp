@@ -52,6 +52,21 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+
+namespace
+{
+
+// kappa times a bound of the power, an infinite bound staying infinite
+// whatever kappa is (also 0, where the product would be NaN), as in
+// BatteryUnitBlock
+double kappa_bound( double kappa , double bound )
+{
+ return( std::isinf( bound ) ? bound : kappa * bound );
+ }
+
+}  // end( unnamed namespace )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -219,6 +234,14 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
                              " is " + std::to_string( v_MinPower[ t ] ) +
                              ", which is greater than the maximum power, which "
                              "is " + std::to_string( v_MaxPower[ t ] ) + "." ) );
+  // a design multiplies the powers in its rows, where an infinite one would
+  // be an infinite coefficient
+  if( ( f_InvestmentCost != 0 ) &&
+      ( std::isinf( v_MinPower[ t ] ) || std::isinf( v_MaxPower[ t ] ) ) )
+   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                            "the power at time " + std::to_string( t ) +
+                            " is infinite, which a unit with a design "
+                            "(InvestmentCost != 0) does not support." ) );
 
  }
  
@@ -360,7 +383,7 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                      -1.0 ) );
 
-    min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
+    min_power_Const[ t ].set_lhs( kappa_bound( f_kappa , v_MinPower[ t ] ) );
     min_power_Const[ t ].set_rhs( Inf< double >() );
     min_power_Const[ t ].set_function(
      new LinearFunction( std::move( vars ) ) );
@@ -387,7 +410,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
                                      1.0 ) );
 
     max_power_Const[ t ].set_lhs( -Inf< double >() );
-    max_power_Const[ t ].set_rhs( f_gamma * f_kappa * v_MaxPower[ t ] );
+    max_power_Const[ t ].set_rhs(
+      kappa_bound( f_gamma * f_kappa , v_MaxPower[ t ] ) );
     max_power_Const[ t ].set_function(
      new LinearFunction( std::move( vars ) ) );
    }
@@ -400,8 +424,10 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   active_power_bounds_Const.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   active_power_bounds_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
-   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] );
+   active_power_bounds_Const[ t ].set_lhs(
+     kappa_bound( f_kappa , v_MinPower[ t ] ) );
+   active_power_bounds_Const[ t ].set_rhs(
+     kappa_bound( f_kappa , v_MaxPower[ t ] ) );
    active_power_bounds_Const[ t ].set_variable( &v_active_power[ t ] );
   }
 
@@ -795,8 +821,9 @@ void IntermittentUnitBlock::update_reserve_row( Index t , bool max_side ,
                                                 c_ModParam issueAMod )
 {
  auto & row = max_side ? max_power_Const[ t ] : min_power_Const[ t ];
- const double value = max_side ? f_gamma * f_kappa * v_MaxPower[ t ]
-                               : f_kappa * v_MinPower[ t ];
+ const double value = max_side
+			? kappa_bound( f_gamma * f_kappa , v_MaxPower[ t ] )
+			: kappa_bound( f_kappa , v_MinPower[ t ] );
 
  if( f_InvestmentCost == 0 ) {  // the value is a side of the row
   if( max_side )
@@ -838,8 +865,8 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
  // stays infinite and the maximum power is a coefficient of the row below
  if( ( ! active_power_bounds_Const.empty() ) && ( f_InvestmentCost == 0 ) )
   for( auto t : time )
-   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
-                                           nAM );
+   active_power_bounds_Const[ t ].set_rhs(
+     kappa_bound( f_kappa , v_MaxPower[ t ] ) , nAM );
 
  // when InvestmentCost != 0 the upper bound on the active power is
  // v_active_power - f_kappa * v_MaxPower * design <= 0, so v_MaxPower is a
@@ -881,8 +908,8 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
  // stays infinite and the maximum power is a coefficient of the row below
  if( ( ! active_power_bounds_Const.empty() ) && ( f_InvestmentCost == 0 ) )
   for( auto t = time.first ; t < time.second ; ++t )
-   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
-                                           nAM );
+   active_power_bounds_Const[ t ].set_rhs(
+     kappa_bound( f_kappa , v_MaxPower[ t ] ) , nAM );
 
  // when InvestmentCost != 0 the upper bound on the active power is
  // v_active_power - f_kappa * v_MaxPower * design <= 0, so v_MaxPower is a
@@ -933,6 +960,15 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_sp values ,
   if( t >= v_MaxPower.size() )
    throw( std::invalid_argument(
     "IntermittentUnitBlock::set_maximum_power: invalid value in subset." ) );
+
+ // a design multiplies the maximum power in its rows [see
+ // check_data_consistency()]
+ if( f_InvestmentCost != 0 )
+  for( Index i = 0 ; i < subset.size() ; ++i )
+   if( std::isinf( values[ i ] ) )
+    throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power: "
+				  "an infinite maximum power is not "
+				  "supported with a design." ) );
 
  auto values_it = values.begin();
 
@@ -991,6 +1027,15 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_sp values ,
                                 "the span is shorter than the Range" ) );
 
  c_Index sz = rng.second - rng.first;
+
+ // a design multiplies the maximum power in its rows [see
+ // check_data_consistency()]
+ if( ( f_InvestmentCost != 0 ) &&
+     std::any_of( values.begin() , values.begin() + sz ,
+		  []( double p ) { return( std::isinf( p ) ); } ) )
+  throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power: "
+				"an infinite maximum power is not supported "
+				"with a design." ) );
 
  if( v_MaxPower.empty() ) {
   if( std::all_of( values.begin() ,
@@ -1247,10 +1292,10 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_sp values ,
 
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
       active_power_bounds_Const[ t ].set_lhs(
-       f_kappa * v_MinPower[ t ] , nAM );
+	kappa_bound( f_kappa , v_MinPower[ t ] ) , nAM );
       if( f_InvestmentCost == 0 )
        active_power_bounds_Const[ t ].set_rhs(
-        f_kappa * v_MaxPower[ t ] , nAM );
+	 kappa_bound( f_kappa , v_MaxPower[ t ] ) , nAM );
      }
 
     if( ! active_power_bounds_design_Const.empty() )
@@ -1375,6 +1420,12 @@ double IntermittentUnitBlock::get_kappa_linearization( void ) const {
  const auto obj_sign =
   ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
+ // a multiplier times a bound: an infinite bound, as that of a power with
+ // no limit, gives no term whatever its multiplier, as does a zero one
+ const auto term = []( double dual , double bound ) {
+  return( ( dual == 0 ) || std::isinf( bound ) ? 0.0 : dual * bound );
+  };
+
  const auto time_horizon = get_time_horizon();
 
  for( Index t = 0 ; t < time_horizon ; ++t ) {
@@ -1397,7 +1448,7 @@ double IntermittentUnitBlock::get_kappa_linearization( void ) const {
     // The dual is associated with the upper bound constraint
     bound = max_power;
 
-   linearization += - dual * bound;
+   linearization += term( -dual , bound );
   } // end( ! active_power_bound_constraints.empty() )
 
   // Minimum and maximum total power constraints
@@ -1413,7 +1464,7 @@ double IntermittentUnitBlock::get_kappa_linearization( void ) const {
   // Update the linearization coefficient
 
   linearization +=
-   min_power * ( alpha_min ) - max_power * ( gamma * alpha_max );
+    term( alpha_min , min_power ) - term( gamma * alpha_max , max_power );
  }
 
  return( linearization );
