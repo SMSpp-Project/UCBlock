@@ -1642,7 +1642,7 @@ void DCNetworkBlock::generate_bound_constraints( void )
    // would be an infinite coefficient
    if( std::isinf( Pmn ) || std::isinf( Pmx ) )
     throw( std::logic_error( classname() +
-			     "::generate_abstract_constraints: "
+			     "::generate_bound_constraints: "
 			     "line " +
 			     std::to_string( l ) +
 			     " has a design "
