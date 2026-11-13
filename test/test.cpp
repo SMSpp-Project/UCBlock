@@ -2145,16 +2145,21 @@ static void test_net_OTS_cost( void )
  * then wrote back a point whose cost was not the one it reported). The
  * Solution, its clone and the one deserialized from what it serialized are
  * written on a Block whose Variable have been changed, and the flows, the
- * auxiliary Variable and the value of the Objective must be back. */
+ * auxiliary Variable and the value of the Objective must be back. The
+ * lines have the minimum flows \p min0 and \p min1, a negative one first:
+ * a line whose flow cannot be negative has no auxiliary Variable, its flow
+ * carrying its cost, and the file has its flow in AuxiliaryValue. */
 
-static void test_net_cost_solution( void )
+static void test_net_cost_solution( double min0 , double min1 )
 {
  const double B = 1000;
- auto g = write_net( "DCNetworkBlock" , 3 ,
-		     { { 0 , 1 , 0 , -B , B } , { 1 , 2 , 0 , -B , B } } ,
-		     { 0 , 0 , 1 } );
+ auto g =
+   write_net( "DCNetworkBlock" , 3 ,
+	      { { 0 , 1 , 0 , min0 , B } , { 1 , 2 , 0 , min1 , B } } ,
+	      { 0 , 0 , 1 } );
  put( g , "NetworkCost" , g.getDim( "NumberLines" ) , { 2 , 3 } );
- const std::string what = "network cost Solution";
+ const std::string what =
+   "network cost Solution, minimum flows " + str( min0 ) + " , " + str( min1 );
  try {
   std::unique_ptr< DCNetworkBlock > nb( dynamic_cast< DCNetworkBlock * >(
 						 Block::new_Block( g ) ) );
@@ -2164,8 +2169,11 @@ static void test_net_cost_solution( void )
 
   const auto & flow = nb->get_power_flow();
   const auto & aux = nb->get_auxiliary_variable();
-  check( aux.size() == 2 , what + ": no auxiliary Variable" );
-  if( aux.size() != 2 )
+  const Index na = ( min0 < 0 ) + ( min1 < 0 );
+  check( aux.size() == na , what + ": " + std::to_string( aux.size() ) +
+			     " auxiliary Variable, not " +
+			     std::to_string( na ) );
+  if( aux.size() != na )
    return;
 
   auto lf = static_cast< LinearFunction * >( static_cast< FRealObjective * >(
@@ -2176,8 +2184,9 @@ static void test_net_cost_solution( void )
    };
 
   // a point with V_l > | F_l |, which the Solution has to give back as it is
-  const std::vector< double > f = { -4 , 7 };
-  const std::vector< double > v = { 5 , 9 };
+  const std::vector< double > f = { ( min0 < 0 ) ? -4. : 4. , 7 };
+  std::vector< double > v = { 5 , 9 };
+  v.resize( na );
   nb->set_power_flow( f );
   nb->set_auxiliary_variable( v );
   const double cost = value();
@@ -2187,16 +2196,25 @@ static void test_net_cost_solution( void )
 
   auto sg = new_group( "SOL" );
   sol->serialize( sg );
+  // one value for each line, the flow for a line with no auxiliary Variable
+  std::vector< double > file( 2 );
+  sg.getVar( "AuxiliaryValue" ).getVar( file.data() );
+  for( Index l = 0 ; l < 2 ; ++l )
+   check( file[ l ] == ( ( l < na ) ? v[ l ] : f[ l ] ) ,
+	  what +
+	    ": "
+	    "AuxiliaryValue of line " +
+	    std::to_string( l ) + " is " + str( file[ l ] ) );
   std::unique_ptr< Solution > des( new DCNetworkBlockSolution() );
   des->deserialize( sg );
 
   auto restored = [ & ]( Solution * s , const std::string & which ) {
    nb->set_power_flow( { 1 , 1 } );
-   nb->set_auxiliary_variable( { 1 , 1 } );
+   nb->set_auxiliary_variable( std::vector< double >( na , 1 ) );
    s->write( nb.get() );
    for( Index l = 0 ; l < 2 ; ++l )
     check( ( flow[ l ].get_value() == f[ l ] ) &&
-	   ( aux[ l ].get_value() == v[ l ] ) ,
+	     ( ( l >= na ) || ( aux[ l ].get_value() == v[ l ] ) ) ,
 	   what + ": " + which + " does not write line " +
 	   std::to_string( l ) );
    check( value() == cost , what + ": the point " + which + " writes "
@@ -2209,6 +2227,62 @@ static void test_net_cost_solution( void )
   }
  catch( std::exception & e ) {
   check( false , what + ": throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Pricing a line after the abstract Variable have been generated with no
+ * priced line: a line whose flow can be negative has then no auxiliary
+ * Variable to carry its cost, and both set_network_cost() refuse it, while
+ * with no such line the cost goes on the flow, also when the Objective is
+ * generated afterwards. */
+
+static void test_net_unpriced_cost( void )
+{
+ const double B = 1000;
+ auto make = [ & ]( double min0 ) {
+  std::unique_ptr< DCNetworkBlock > nb( dynamic_cast< DCNetworkBlock * >(
+    Block::new_Block( write_net( "DCNetworkBlock" , 3 ,
+				 { { 0 , 1 , 0 , min0 , B } ,
+				   { 1 , 2 , 0 , 0 , B } } ,
+				 { 0 , 0 , 1 } ) ) ) );
+  nb->generate_abstract_variables();
+  return( nb );
+  };
+ auto refused = [ & ]( auto f ) {
+  try {
+   f();
+   }
+  catch( std::logic_error & ) {
+   return( true );
+   }
+  return( false );
+  };
+ const std::vector< double > val = { 2 };
+ const std::string what = "network cost on an unpriced network";
+
+ auto nb = make( -B );
+ check( refused( [ & ]() {
+	 nb->set_network_cost( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
+	 } ) ,
+	what + ": set_network_cost( range ) prices a two-way line" );
+ check( refused( [ & ]() {
+	 nb->set_network_cost( Block::MF_dbl_sp( val ) , Subset( { 0 } ) );
+	 } ) ,
+	what + ": set_network_cost( subset ) prices a two-way line" );
+
+ nb = make( 0 );
+ try {
+  nb->set_network_cost( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
+  nb->generate_objective();
+  auto lf = static_cast< LinearFunction * >(
+    static_cast< FRealObjective * >( nb->get_objective() )->get_function() );
+  const auto idx = lf->is_active( &nb->get_power_flow()[ 0 ] );
+  check( ( idx != Inf< Index >() ) && ( lf->get_coefficient( idx ) == 2 ) ,
+	 what + ": the cost of a one-way line is not on its flow" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": a one-way line priced throws " + e.what() );
   }
  }
 
@@ -18458,7 +18532,10 @@ int main( int argc , char ** argv )
   test_scale_design_guard();
   test_net_OTS_cost();
   test_net_negative_cost();
-  test_net_cost_solution();
+  test_net_unpriced_cost();
+  test_net_cost_solution( -1 , -1 );
+  test_net_cost_solution( -1 , 0 );
+  test_net_cost_solution( 0 , 0 );
   test_net_dual_prices();
   test_net_no_lines();
   test_net_hyperarc_susceptance();
