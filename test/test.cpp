@@ -12597,6 +12597,136 @@ static void test_battery_kappa_infinite_storage( void )
  delete bu;
  }
 
+/*--------------------------------------------------------------------------*/
+/* get_kappa_linearization() of a battery with infinite bounds, with the
+ * duals that a Solver leaves on rows that bound nothing: noise of the order
+ * of 1e-16, of either sign, here on every row. An infinite side gives no
+ * term, so the linearization is finite, and as small as the noise times the
+ * finite bounds. Once the storage is infinite, once the power, as in the
+ * Store of PyPSA. */
+
+static void test_battery_kappa_noise_duals( void )
+{
+ using Data = std::vector< std::pair< std::string , std::vector< double > > >;
+ const std::vector< std::pair< std::string , Data > > cases = {
+  { "infinite storage" ,
+    { { "MinStorage" , { -INF , -INF } } ,
+      { "MaxStorage" , { INF , INF } } ,
+      { "MinPower" , { -10 , -10 } } ,
+      { "MaxPower" , { 10 , 10 } } } } ,
+  { "infinite power" ,
+    { { "MinStorage" , { 0 , 0 } } ,
+      { "MaxStorage" , { 50 , 50 } } ,
+      { "MinPower" , { -INF , -INF } } ,
+      { "MaxPower" , { INF , INF } } } }
+  };
+
+ for( const auto & [ what , data ] : cases ) {
+  auto bu = new_BU( 2 , data );
+  if( ! bu ) {
+   check( false , "battery, " + what + ", noise duals: not read" );
+   continue;
+   }
+  generate_all( bu );
+  std::vector< ColVariable * > vars;
+  std::vector< RowConstraint * > rows;
+  tree_of( bu , vars , rows );
+  for( const double noise : { 1e-16 , -1e-16 } ) {
+   for( auto r : rows )
+    r->set_dual( noise );
+   const double l = bu->get_kappa_linearization();
+   check( std::isfinite( l ) && ( std::abs( l ) < 1e-12 ) ,
+	  "battery, " + what + ", duals " + str( noise ) +
+	    ": kappa linearization " + str( l ) );
+   }
+  delete bu;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The bounds of the node injections of an ECNetworkBlock whose only unit is
+ * a battery of power in [ - inf , + inf ], as the Store of PyPSA: they are
+ * infinite, not NaN, also at kappa 0, where the unit is still free [see
+ * BatteryUnitBlock], and the derivative with respect to the kappa is finite
+ * with the duals 0 and with a noise of either sign on the bound of the
+ * node, an infinite side giving no term. */
+
+static void test_injection_bounds_infinite_store( void )
+{
+ using QrySbst =
+   Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & , bool >;
+ using SetSbst =
+   Block::FunctionType< Block::MF_dbl_sp , Block::Subset && , bool >;
+ const std::string tag = "injection bounds, infinite store";
+
+ auto g = new_group( "UCECS" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 1 );
+ g.addDim( "NumberUnits" , 1 );
+ auto N = g.addDim( "NumberNodes" , 2 );
+ auto G = g.addDim( "NumberElectricalGenerators" , 1 );
+ g.addDim( "NumberNetworks" , 1 );
+ g.addDim( "NumberIntervals" , 1 );
+ for( const auto & [ name , value ] :
+      { std::pair< const char * , const char * >( "NetworkBlockClassname" ,
+						 "ECNetworkBlock" ) ,
+	std::pair< const char * , const char * >( "NetworkDataClassname" ,
+						 "ECNetworkData" ) } )
+  g.addVar( name , netCDF::NcString() ).putVar( &value );
+ put( g , "ActivePowerDemand" , { N , TH } , { 0 , 50 } );
+ put( g , "SellPrice" , 50.0 );
+ put( g , "BuyPrice" , 200.0 );
+ put( g , "RewardPrice" , 100.0 );
+ put( g , "PeakTariff" , 0.0 );
+ put_int( g , "GeneratorNode" , G , { 0 } );
+ auto u = g.addGroup( "UnitBlock_0" );
+ u.putAtt( "type" , "BatteryUnitBlock" );
+ put( u , "MinPower" , -INF );
+ put( u , "MaxPower" , INF );
+ put( u , "MinStorage" , 0.0 );
+ put( u , "MaxStorage" , 50.0 );
+
+ std::unique_ptr< UCBlock > uc(
+   dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ if( ! uc ) {
+  check( false , tag + ": the UCBlock is not read" );
+  return;
+  }
+ generate_all( uc.get() );
+ auto rows =
+   uc->get_network_block( 0 )->get_static_constraint< BoxConstraint , 2 >(
+     "Node_Injection_Bound_Const_Network" );
+ const auto setter = Block::get_method< SetSbst >( "UCBlock::resize_unit" );
+ const auto getter =
+   Block::get_method< QrySbst >( "UCBlock::get_resize_unit_linearization" );
+ if( ! ( rows && setter && getter ) ) {
+  check( false , tag + ": no rows of the bounds, or the methods are not "
+		      "registered" );
+  return;
+  }
+ auto & row = ( *rows )[ 0 ][ 0 ];
+
+ for( const double kappa : { 1.0 , 0.0 } ) {
+  const std::vector< double > f = { kappa };
+  std::invoke( *setter , uc.get() , Block::MF_dbl_sp( f ) ,
+	       Block::Subset{ 0 } ,
+	       true , eNoBlck , eNoBlck );
+  const std::string at = tag + ", kappa " + str( kappa );
+  check( ( row.get_lhs() == -INF ) && ( row.get_rhs() == INF ) ,
+	 at + ": the bound of node 0 is [ " + str( row.get_lhs() ) + " , " +
+	   str( row.get_rhs() ) + " ], not [ - inf , + inf ]" );
+  for( const double dual : { 0.0 , 1e-16 , -1e-16 } ) {
+   row.set_dual( dual );
+   double d = 7;
+   std::invoke( *getter , uc.get() , Block::MF_dbl_msp( &d , 1 ) ,
+		Block::Subset{ 0 } , true );
+   check( std::isfinite( d ) ,
+	  at + ", dual " + str( dual ) + ": the derivative is " + str( d ) );
+   }
+  row.set_dual( 0 );
+  }
+ }
+
 /* Tests of fvfix-NET, to be put in wt-ucb/test/test.cpp next to
  * test_ac_flow_group() (they use write_net(), new_net(), NetLine, put*(),
  * new_group(), check(), close(), str()).
@@ -18642,6 +18772,8 @@ int main( int argc , char ** argv )
   test_battery_design_ub();
   test_battery_design_zero_max();
   test_battery_kappa_infinite_storage();
+  test_battery_kappa_noise_duals();
+  test_injection_bounds_infinite_store();
 
   test_nuclear_DP_throw_releases_lock();
   test_nuclear_DP_initial_power_reload();

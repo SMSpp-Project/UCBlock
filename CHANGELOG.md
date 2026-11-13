@@ -20,12 +20,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   network cost, and its two rows `power_flow_relax_abs`, only for the
   lines whose flow can be negative (`MinPowerFlow` < 0): on the other lines
   `| F_l | = F_l`, and the cost goes on the flow. On a sector-coupled
-  PyPSA-Eur network with 348 lines, 43 of which can have a negative flow,
+  network with 348 lines, 43 of which can have a negative flow,
   those rows were about 40% of the rows. `get_auxiliary_variable()` has
   one element for each such line, in the order of the lines, and
   `set_auxiliary_variable()` takes as many; the netCDF format of
   `DCNetworkBlockSolution` does not change, `AuxiliaryValue` keeping one
   entry for each line, the flow for a line with no auxiliary variable
+
+### Fixed
+
+- an infinite bound, as that of a storage with no power limit, gives no
+  term in the derivatives with respect to the size of a unit, whatever
+  the dual of its row: `BatteryUnitBlock::get_kappa_linearization()`, on
+  the bounds of the active power and of the storage level, and
+  `UCBlock::get_resize_unit_linearization()`, on the bounds of the node
+  injections, gave `inf` or `nan` with the duals of the order of 1e-16
+  that a Solver leaves on rows that bound nothing, and the latter also
+  with a zero dual
+- `UCBlock` keeps infinite the bounds of the active node injections of a
+  unit with an infinite power at kappa 0, which were `nan` (0 times an
+  infinite power), as the unit itself stays free
 
 ## [0.11.0] - 2026-11-03
 

@@ -2830,10 +2830,10 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   return( obj_sign < 0 ? std::min( one , other ) : std::max( one , other ) );
   };
 
- // a multiplier times a bound: a zero multiplier gives no term, also when
- // the bound is infinite, as that of a power with no limit
+ // a multiplier times a bound: an infinite bound, as that of a power with
+ // no limit, gives no term whatever its multiplier, as does a zero one
  const auto term = []( double dual , double bound ) {
-  return( dual == 0 ? 0.0 : dual * bound );
+  return( ( dual == 0 ) || std::isinf( bound ) ? 0.0 : dual * bound );
   };
 
  const auto time_horizon = get_time_horizon();
@@ -2918,9 +2918,8 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   }
 
   // The bound is associated with the upper bound constraint; a zero dual
-  // gives no term, also when the bound is infinite
-  if( dual != 0 )
-   linearization += - dual * bound;
+  // gives no term, as does an infinite bound
+  linearization += term( -dual , bound );
 
   // Primary and secondary reserves bounds
 
