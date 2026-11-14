@@ -60,6 +60,12 @@
 
 #include <mutex>
 
+#include <ostream>
+
+#include <queue>
+
+#include <tuple>
+
 #if TUDPS_PROFILE
  #include <chrono>
  #include <iostream>
@@ -149,11 +155,29 @@ int ThermalUnitDPSolver::compute( bool changedvars )
  #define TUDPS_TIME( acc , cnt ) { auto now = clk::now(); \
    acc += std::chrono::duration< double >( now - tic ).count(); ++cnt; \
    tic = now; }
- switch( stage ) {
-  case( start ):    build_graph();       TUDPS_TIME( t_bg , n_bg )
-  case( graph_OK ): compute_EDPs();      TUDPS_TIME( t_ed , n_ed )
-  case( edps_OK ):  min_path();          TUDPS_TIME( t_mp , n_mp )
-  case( path_OK ):  compute_solutions(); TUDPS_TIME( t_cs , n_cs )
+ if( stage == start ) {
+  build_graph();
+  TUDPS_TIME( t_bg , n_bg )
+  }
+ if( f_bound_prune ) {
+  if( stage < path_OK ) {
+   bound_search();
+   TUDPS_TIME( t_ed , n_ed )
+   }
+  }
+ else {
+  if( stage == graph_OK ) {
+   compute_EDPs();
+   TUDPS_TIME( t_ed , n_ed )
+   }
+  if( stage == edps_OK ) {
+   min_path();
+   TUDPS_TIME( t_mp , n_mp )
+   }
+  }
+ if( stage == path_OK ) {
+  compute_solutions();
+  TUDPS_TIME( t_cs , n_cs )
   }
  #undef TUDPS_TIME
  ++n_call;
@@ -163,11 +187,52 @@ int ThermalUnitDPSolver::compute( bool changedvars )
            << " min_path=" << t_mp << "s/" << n_mp
            << " compute_solutions=" << t_cs << "s/" << n_cs << std::endl;
 #else
- switch( stage ) {
-  case( start ):    build_graph();
-  case( graph_OK ): compute_EDPs();
-  case( edps_OK ):  min_path();
-  case( path_OK ):  compute_solutions();
+ // the stages that are not done yet, in their order: with intBoundPrune
+ // the economic dispatches and the path are done at once
+ const bool solved = ( stage < path_OK );
+ if( stage == start )
+  build_graph();
+ if( f_bound_prune ) {
+  if( stage < path_OK )
+   bound_search();
+  }
+ else {
+  if( stage == graph_OK )
+   compute_EDPs();
+  if( stage == edps_OK )
+   min_path();
+  }
+ if( stage == path_OK )
+  compute_solutions();
+
+ if( f_log && solved ) {
+  if( ! f_bound_prune ) {
+   // every node with arcs has been scanned, and every on one solved
+   f_on_exp = f_off_exp = f_ed_steps = f_bounded = f_reopen = 0;
+   if( f_start.DPS && ( ! f_start.v_arcs.empty() ) ) {
+    ++f_on_exp;
+    f_ed_steps += f_start.DPS->steps();
+    }
+   for( const auto & nd : v_on_nodes )
+    if( ! nd.v_arcs.empty() ) {
+     ++f_on_exp;
+     f_ed_steps += nd.DPS->steps();
+     }
+   for( const auto & nd : v_off_nodes )
+    if( ! nd.v_arcs.empty() )
+     ++f_off_exp;
+   if( ( ! f_start.DPS ) && ( ! f_start.v_arcs.empty() ) )
+    ++f_off_exp;
+   }
+  const auto prec = f_log->precision( 17 );
+  *f_log << "ThermalUnitDPSolver: on nodes expanded " << f_on_exp
+	 << " , off nodes expanded " << f_off_exp << " , bounded " << f_bounded
+	 << " , expanded again " << f_reopen << " , ED instants " << f_ed_steps
+	 << " , value " << f_end.lab;
+  if( f_bound_prune )
+   *f_log << " , root bound " << f_hs;
+  *f_log << std::endl;
+  f_log->precision( prec );
   }
 #endif
 
@@ -693,29 +758,7 @@ void ThermalUnitDPSolver::compute_EDPs( void )
   throw( std::logic_error(
    "ThermalUnitDPSolver::compute_EDPs: graph not ready." ) );
 
- // precompute, once per solve, the per-period capacity-band reserve discount
- // g^0_t(p) as convex piecewise-linear PQFuns (shared by all ON nodes, they
- // depend only on t): eff_disc[t] is the interior variant (cap max_power[t]),
- // eff_disc_su[t] the start-up variant (cap bound_on[t]). These are added at
- // the FIRST period of an on-interval, where there is no predecessor and
- // hence no ramp coupling; at every interior on->on transition the reserve
- // reward is instead folded through sliding_min_corr()
- // (compute_costs_reserve). The shut-down cap is handled by recomputing the
- // closing transition there, so no separate shut-down table is needed. Empty
- // unless some reserve is rewarded; when empty, compute_costs() runs the
- // plain quadratic dispatch
- if( reserve_rewarded() ) {
-  eff_disc.resize( time_horizon );
-  eff_disc_su.resize( time_horizon );
-  for( Index t = 0 ; t < time_horizon ; ++t ) {
-   eff_disc   [ t ] = build_reserve_discount( t , max_power[ t ] );
-   eff_disc_su[ t ] = build_reserve_discount( t , bound_on  [ t ] );
-   }
-  }
- else {
-  eff_disc.clear();
-  eff_disc_su.clear();
-  }
+ build_reserve_discounts();
 
  std::vector< double > cost( time_horizon );
 
@@ -723,24 +766,7 @@ void ThermalUnitDPSolver::compute_EDPs( void )
  // no arcs at all if the fixings forbid them all (the problem is unfeasible)
  if( f_start.DPS && ( ! f_start.v_arcs.empty() ) ) {  // f_start is a ON node
   f_start.DPS->compute_costs( cost );  // solve EDPs, retrieve optimal costs
-
-  // index of first tail node (note: one arc surely exists)
-  Index h = h_of_node( f_start.v_arcs.front().tail );
-
-  // the cost of ( s , h ) is found in cost[ h - 1 ]: however, one must
-  // be careful of the weird case where ( s , 0 ) is present, i.e.,
-  // the unit is on, but it immediately shuts down. this arc has cost 0
-  // as "nothing happens there". this is how the arc cost is initialized,
-  // and it is never changed, so one just need to skip it
-  auto ai = f_start.v_arcs.begin();
-  if( h )
-   --h;
-  else
-   ++ai;
-
-  // set the variable costs in the arcs
-  for( ; ai != f_start.v_arcs.end() ; ++ai )
-   ai->cost2 = cost[ h++ ];
+  set_arc_costs( f_start , cost );      // set the variable costs in the arcs
   }
 
  // update variable costs in the arcs outgoing from every ON( i ): each node
@@ -754,13 +780,7 @@ void ThermalUnitDPSolver::compute_EDPs( void )
    return;
 
   nd.DPS->compute_costs( cost );  // solve EDPs, retrieve optimal costs
-
-  // the cost of ( i , h ) is found in cost[ h - 1 ]; note that h > i,
-  // and therefore h > 0, and therefore h - 1 is well-defined
-  Index h = h_of_node( nd.v_arcs.front().tail ) - 1;
-
-  for( auto & a : nd.v_arcs )  // set the variable costs in the arcs
-   a.cost2 = cost[ h++ ];
+  set_arc_costs( nd , cost );      // set the variable costs in the arcs
   };
 
 #if TUDPS_PARALLEL
@@ -798,6 +818,316 @@ void ThermalUnitDPSolver::compute_EDPs( void )
 
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitDPSolver::build_reserve_discounts( void )
+{
+ // precompute, once per solve, the per-period capacity-band reserve discount
+ // g^0_t(p) as convex piecewise-linear PQFuns (shared by all ON nodes, they
+ // depend only on t): eff_disc[t] is the interior variant (cap max_power[t]),
+ // eff_disc_su[t] the start-up variant (cap bound_on[t]). These are added at
+ // the FIRST period of an on-interval, where there is no predecessor and
+ // hence no ramp coupling; at every interior on->on transition the reserve
+ // reward is instead folded through sliding_min_corr()
+ // (compute_costs_reserve). The shut-down cap is handled by recomputing the
+ // closing transition there, so no separate shut-down table is needed. Empty
+ // unless some reserve is rewarded; when empty, compute_costs() runs the
+ // plain quadratic dispatch
+ if( reserve_rewarded() ) {
+  eff_disc.resize( time_horizon );
+  eff_disc_su.resize( time_horizon );
+  for( Index t = 0 ; t < time_horizon ; ++t ) {
+   eff_disc[ t ] = build_reserve_discount( t , max_power[ t ] );
+   eff_disc_su[ t ] = build_reserve_discount( t , bound_on[ t ] );
+   }
+  }
+ else {
+  eff_disc.clear();
+  eff_disc_su.clear();
+  }
+
+ }  // end( ThermalUnitDPSolver::build_reserve_discounts )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitDPSolver::set_arc_costs( node & nd ,
+					 const std::vector< double > & cost )
+{
+ // the cost of the arc ( i , h ) is found in cost[ h - 1 ], and h > 0 but
+ // in the weird case where ( s , 0 ) is present, i.e., the unit is on, but
+ // it immediately shuts down. this arc has cost 0 as "nothing happens
+ // there". this is how the arc cost is initialized, and it is never
+ // changed, so one just need to skip it
+ auto ai = nd.v_arcs.begin();
+ Index h = h_of_node( ai->tail );
+ if( h )
+  --h;
+ else
+  ++ai;
+
+ for( ; ai != nd.v_arcs.end() ; ++ai )
+  ai->cost2 = cost[ h++ ];
+
+ }  // end( ThermalUnitDPSolver::set_arc_costs )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitDPSolver::build_bounds( void )
+{
+ // the least energy and reserve term of an instant is that of the reserve
+ // band of the bounds of the power alone, which the ramps and the start-up
+ // and shut-down caps only narrow, as in ThermalUnitExtDPSolver; an instant
+ // with no power within the bounds cannot be on (f_ninf counts them)
+ const Index T = time_horizon;
+ std::vector< double > lb( T );
+ f_lbp.assign( T + 1 , 0 );
+ f_ninf.assign( T + 1 , 0 );
+ f_cf.assign( T + 1 , 0 );
+ f_bscale = 0;
+
+ for( Index t = 0 ; t < T ; ++t ) {
+  const double c = const_term[ t ] + reactive_delta[ t ];
+  lb[ t ] = TUDPINF;
+  if( min_power[ t ] <= max_power[ t ] + 1e-12 ) {
+   PQFun G{ { quad_term[ t ] , linear_term[ t ] , 0.0 ,
+	      double( min_power[ t ] ) ,
+	      double( max_power[ t ] ) } };
+   if( ! eff_disc.empty() )
+    add_pwq( G , eff_disc[ t ] );
+   lb[ t ] = min_over( G , min_power[ t ] , max_power[ t ] ).first;
+   }
+  f_cf[ t + 1 ] = f_cf[ t ] + c;
+  f_lbp[ t + 1 ] = f_lbp[ t ] + ( lb[ t ] < TUDPINF ? lb[ t ] : 0 );
+  f_ninf[ t + 1 ] = f_ninf[ t ] + ( lb[ t ] < TUDPINF ? 0 : 1 );
+
+  const double P = std::max( std::abs( double( min_power[ t ] ) ) ,
+			     std::abs( double( max_power[ t ] ) ) );
+  f_bscale +=
+    std::abs( quad_term[ t ] ) * P * P + std::abs( linear_term[ t ] ) * P +
+    std::abs( c ) +
+    ( startup_costs.empty() ? 0 : std::abs( startup_costs[ t ] ) ) +
+    ( shutdown_costs.empty() ? 0 : std::abs( shutdown_costs[ t ] ) ) +
+    ( lb[ t ] < TUDPINF ? std::abs( lb[ t ] ) : 0 );
+  }
+
+ // the bound of the arcs: their fixed part, plus the least terms of the
+ // instants of their on-run [ h , k ) if they leave an on node
+ auto arc_lb = [ & ]( const node & nd , Index h , const arc & a ) {
+  if( ! nd.DPS )
+   return( a.cost1 );
+  const Index k = h_of_node( a.tail );
+  if( k <= h )  // the empty run of the arc ( s , 0 )
+   return( a.cost1 );
+  if( f_ninf[ k ] > f_ninf[ h ] )
+   return( TUDPINF );
+  return( a.cost1 + f_lbp[ k ] - f_lbp[ h ] );
+  };
+
+ // h( v ), the distance to d with the bounds of the arcs, backwards in the
+ // topological order; a node with no arcs has none
+ f_hon.assign( T , TUDPINF );
+ f_hoff.assign( T , TUDPINF );
+ auto dist = [ & ]( const node & nd , Index h ) {
+  double hv = TUDPINF;
+  for( const auto & a : nd.v_arcs ) {
+   const double l = arc_lb( nd , h , a );
+   const double ht = ( a.tail == &f_end ) ? 0
+		     : a.tail->DPS ? f_hon[ a.tail - v_on_nodes.data() ]
+				   : f_hoff[ a.tail - v_off_nodes.data() ];
+   if( ( l < TUDPINF ) && ( ht < TUDPINF ) && ( l + ht < hv ) )
+    hv = l + ht;
+   }
+  return( hv );
+  };
+
+ for( Index i = T ; i-- > 0 ; ) {
+  f_hoff[ i ] = dist( v_off_nodes[ i ] , i );
+  f_hon[ i ] = dist( v_on_nodes[ i ] , i );
+  }
+ f_hs = dist( f_start , 0 );
+
+ // the bound of the rest of a run that is on at k: shut down at some
+ // k' > k , or stay on to the end
+ f_gb.assign( T , 0 );
+ double R = 0;  // the instants after T - 1 cost nothing
+ for( Index k = T ; k-- > 0 ; ) {
+  f_gb[ k ] = f_cf[ k + 1 ] + R;
+  if( k == 0 )
+   break;
+  // R for k - 1: the run either shuts down at k, or it is on at k
+  double off = TUDPINF;
+  if( f_hoff[ k ] < TUDPINF )
+   off = f_hoff[ k ] + ( shutdown_costs.empty() ? 0 : shutdown_costs[ k ] );
+  const double on = ( lb[ k ] < TUDPINF ) && ( R < TUDPINF )
+		      ? lb[ k ] + const_term[ k ] + reactive_delta[ k ] + R
+		      : TUDPINF;
+  R = std::min( off , on );
+  }
+
+ }  // end( ThermalUnitDPSolver::build_bounds )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitDPSolver::bound_search( void )
+{
+ if( stage < graph_OK )
+  throw( std::logic_error(
+    "ThermalUnitDPSolver::bound_search: graph not ready." ) );
+
+ build_reserve_discounts();
+ build_bounds();
+
+ // reset labels and predecessors for all nodes (except f_start, that will
+ // always have lab == 0 and predecessor == nullptr), as in min_path()
+ for( auto & nde : v_on_nodes )
+  init_node( nde );
+ for( auto & nde : v_off_nodes )
+  init_node( nde );
+
+ init_node( f_end );
+
+ f_on_exp = f_off_exp = f_bounded = f_reopen = f_ed_steps = 0;
+
+ const Index T = time_horizon;
+ std::vector< double > cost( T );
+
+ // the index of a node in the topological order of min_path(): s, ( 0 , 1 ),
+ // ( 0 , 0 ) , ( 1 , 1 ) , ... , d
+ auto topo = [ & ]( const node * n ) -> Index {
+  if( n == &f_start )
+   return( 0 );
+  if( n == &f_end )
+   return( 2 * T + 1 );
+  if( ( n >= v_on_nodes.data() ) && ( n < v_on_nodes.data() + T ) )
+   return( 2 * Index( n - v_on_nodes.data() ) + 1 );
+  return( 2 * Index( n - v_off_nodes.data() ) + 2 );
+  };
+
+ auto node_of = [ & ]( Index k ) -> node & {
+  if( ! k )
+   return( f_start );
+  return( k % 2 ? v_on_nodes[ ( k - 1 ) / 2 ]
+		 : v_off_nodes[ ( k - 2 ) / 2 ] );
+  };
+
+ // h( v ) of the class comment
+ auto heur = [ & ]( Index k ) -> double {
+  if( ! k )
+   return( f_hs );
+  return( k % 2 ? f_hon[ ( k - 1 ) / 2 ] : f_hoff[ ( k - 2 ) / 2 ] );
+  };
+
+ // U + epsilon of the class comment
+ auto level = [ & ]() -> double {
+  return( f_end.lab + 1e-9 * ( 1 + std::abs( f_end.lab ) + f_bscale ) );
+  };
+
+ // solve the economic dispatches of an on node, stopped by the budget
+ // [see EDSolver::set_bound()]; those of a node already solved (by the A*
+ // search, before its label decreased) with a larger budget are still
+ // valid, as the arcs it has stopped cost more
+ std::vector< double > budget( 2 * T + 1 , -TUDPINF );
+ auto solve_ed = [ & ]( node & nd , double b ) {
+  const Index k = topo( &nd );
+  if( budget[ k ] >= b )
+   return;
+  budget[ k ] = b;
+  const Index h = ( &nd == &f_start ) ? 0 : Index( &nd - v_on_nodes.data() );
+  nd.DPS->set_bound( b < TUDPINF ? f_gb.data() : nullptr , b + f_cf[ h ] );
+  nd.DPS->compute_costs( cost );
+  nd.DPS->set_bound( nullptr , 0 );
+  set_arc_costs( nd , cost );
+  f_ed_steps += nd.DPS->steps();
+  };
+
+ auto solve = [ & ]( node & nd ) {
+  if( ! nd.DPS ) {
+   ++f_off_exp;
+   return;
+   }
+  solve_ed( nd , level() < TUDPINF ? level() - nd.lab : TUDPINF );
+  ++f_on_exp;
+  };
+
+ if( f_bound_prune == 1 ) {
+  // depth-first: the order of min_path(), skipping the nodes that are not
+  // reached and those that the bound proves useless
+  auto visit = [ & ]( node & nd ) {
+   if( nd.v_arcs.empty() || ( nd.lab == TUDPINF ) )
+    return;
+   if( nd.lab + heur( topo( &nd ) ) > level() ) {
+    ++f_bounded;
+    return;
+    }
+   solve( nd );
+   process_node( nd );
+   };
+
+  visit( f_start );
+  for( Index i = 0 ; i < T ; ++i ) {
+   visit( v_on_nodes[ i ] );
+   visit( v_off_nodes[ i ] );
+   }
+  }
+ else {
+  // A*: the nodes by increasing label + h, each with the label it has when
+  // it is put in the queue (an entry whose label is no longer that of its
+  // node is stale), until the least value exceeds the level
+  using entry = std::tuple< double , Index , double >;
+  std::priority_queue< entry , std::vector< entry > ,
+		       std::greater< entry > > Q;
+  std::vector< char > expd( 2 * T + 2 , 0 );
+  std::vector< double > expl( 2 * T + 2 , TUDPINF );
+
+  if( ! f_start.v_arcs.empty() )
+   Q.emplace( heur( 0 ) , 0 , 0.0 );
+
+  while( ! Q.empty() ) {
+   const auto [ f , k , l ] = Q.top();
+   if( f > level() )
+    break;
+   Q.pop();
+   auto & nd = node_of( k );
+   if( ( l != nd.lab ) || ( expd[ k ] && ( expl[ k ] == l ) ) )
+    continue;
+   if( expd[ k ] )
+    ++f_reopen;
+   expd[ k ] = 1;
+   expl[ k ] = l;
+
+   solve( nd );
+
+   // the scan of process_node(), save that a tie goes to the tail that
+   // comes first in the topological order
+   for( auto & a : nd.v_arcs ) {
+    const auto nl = nd.lab + a.cost1 + a.cost2;
+    node * w = a.tail;
+    if( w->lab > nl ) {
+     w->lab = nl;
+     w->pred = &nd;
+     if( ( w != &f_end ) && ( ! w->v_arcs.empty() ) )
+      Q.emplace( nl + heur( topo( w ) ) , topo( w ) , nl );
+     }
+    else if( ( w->lab == nl ) && ( nl < TUDPINF ) && w->pred &&
+	     ( k < topo( w->pred ) ) )
+     w->pred = &nd;
+    }
+   }
+
+  // the nodes reached and never expanded are those bounded
+  for( Index k = 1 ; k <= 2 * T ; ++k ) {
+   const auto & nd = node_of( k );
+   if( ( ! expd[ k ] ) && ( nd.lab < TUDPINF ) && ( ! nd.v_arcs.empty() ) )
+    ++f_bounded;
+   }
+  }
+
+ close_path();
+
+ stage = path_OK;  // all done: update stage
+
+ }  // end( ThermalUnitDPSolver::bound_search )
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitDPSolver::min_path( void )
 {
  if( stage < edps_OK )
@@ -824,6 +1154,17 @@ void ThermalUnitDPSolver::min_path( void )
   process_node( v_on_nodes[ i ] );
   process_node( v_off_nodes[ i ] );
   }
+
+ close_path();
+
+ stage = path_OK;  // all done: update stage
+
+ }  // end( ThermalUnitDPSolver::min_path )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitDPSolver::close_path( void )
+{
 
  // reactive power contribution (AC instances): q[t] in [Qmin,Qmax] is
  // separable from the commitment/active-power shortest path and carries the
@@ -876,9 +1217,7 @@ void ThermalUnitDPSolver::min_path( void )
  else
   f_end.lab += Q_star;     // no design: the reactive term is always incurred
 
- stage = path_OK;  // all done: update stage
-
- }  // end( ThermalUnitDPSolver::min_path )
+ }  // end( ThermalUnitDPSolver::close_path )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1396,6 +1735,17 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   if( ( k < time_horizon - 1 ) &&
       ( bound_down[ k + 1 ] < m[ 0 ] - f_solver->eps ) )
    costs[ k ] = TUDPINF;
+
+  // the bound of set_bound(), with the minimum of z_{h,h} at unc_p[ k ]
+  f_steps = 1;
+  if( f_bnd_g && ( k < time_horizon - 1 ) &&
+      ( coeffs[ 0 ].alfa * unc_p[ k ] * unc_p[ k ] +
+	  coeffs[ 0 ].beta * unc_p[ k ] + f_bnd_g[ k ] >
+	f_bnd_budget ) ) {
+   for( Index kk = k + 1 ; kk < time_horizon ; ++kk )
+    costs[ kk ] = TUDPINF;
+   return;
+   }
   }
 
  // outermost loop - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1476,6 +1826,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
     unc_p[ kk ] = con_p[ kk ] = min_power[ kk ];
     costs[ kk ] = TUDPINF;
     }
+   f_steps = k - f_h;
    return;
    }
   const double lo_k = p_bar;  // the left end of the domain at k
@@ -1658,6 +2009,12 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   while( con_p[ k ] > m[ qm + 1 ] )
    ++qm;
 
+  // the piece of unc_p[ k ] >= con_p[ k ], for the bound of set_bound()
+  Index qu = qm;
+  if( f_bnd_g )
+   while( unc_p[ k ] > m[ qu + 1 ] )
+    ++qu;
+
   #if( COMPUTE_DUALS )
    q = qm - pos[ k ].begm + pos[ k ].begt;
   #else
@@ -1673,6 +2030,19 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   if( ( k < time_horizon - 1 ) &&
       ( bound_down[ k + 1 ] < lo_k - f_solver->eps ) )
    costs[ k ] = TUDPINF;
+
+  // the bound of set_bound(), with the minimum of z_{h,k} at unc_p[ k ]
+  f_steps = k - f_h + 1;
+  if( f_bnd_g && ( k < time_horizon - 1 ) ) {
+   const auto & cu = coeffs[ q + ( qu - qm ) ];
+   if( cu.alfa * unc_p[ k ] * unc_p[ k ] + cu.beta * unc_p[ k ] + cu.gamma +
+	 f_bnd_g[ k ] >
+       f_bnd_budget ) {
+    for( Index kk = k + 1 ; kk < time_horizon ; ++kk )
+     costs[ kk ] = TUDPINF;
+    return;
+    }
+   }
 
   }  // end( for( k ) )
  }  // end( ThermalUnitDPSolver::DPEDSolver::compute_costs )
@@ -1753,6 +2123,15 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs_reserve(
    con_p[ h ] = uu.second;
    costs[ h ] = uu.first;
    }
+
+  // the bound of set_bound(), with the minimum of z_{h,h}
+  f_steps = 1;
+  if( f_bnd_g && ( h < T - 1 ) &&
+      ( uu.first + f_bnd_g[ h ] > f_bnd_budget ) ) {
+   for( Index kk = h + 1 ; kk < T ; ++kk )
+    costs[ kk ] = TUDPINF;
+   return;
+   }
   }
 
  // forward sweep k = h+1 .. T-1- - - - - - - - - - - - - - - - - - - - - - -
@@ -1777,6 +2156,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs_reserve(
     unc_p[ kk ] = con_p[ kk ] = min_power[ kk ];
     costs[ kk ] = TUDPINF;
     }
+   f_steps = k - h;
    return;
    }
 
@@ -1807,6 +2187,15 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs_reserve(
   else {                             // no tighter shut-down cap / horizon end
    con_p[ k ] = uu.second;
    costs[ k ] = uu.first;
+   }
+
+  // the bound of set_bound(), with the minimum of z_{h,k}
+  f_steps = k - h + 1;
+  if( f_bnd_g && ( k < T - 1 ) &&
+      ( uu.first + f_bnd_g[ k ] > f_bnd_budget ) ) {
+   for( Index kk = k + 1 ; kk < T ; ++kk )
+    costs[ kk ] = TUDPINF;
+   return;
    }
 
   z.swap( zk );

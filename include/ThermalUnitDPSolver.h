@@ -218,7 +218,81 @@ namespace SMSpp_di_unipi_it
  * variable is not positive (or if a fixing forces it); the value is then
  * multiplied by the scale factor. Note that the economic dispatches of the
  * different on nodes are independent, and hence they are solved in parallel
- * when the horizon is long enough [see intParMinN]. */
+ * when the horizon is long enough [see intParMinN].
+ *
+ * <b>Bounding.</b> If intBoundPrune is nonzero the graph is searched as in a
+ * branch-and-bound: the economic dispatches of the nodes that cannot be on
+ * an optimal path are not solved, or are stopped. Let
+ * \f[
+ *   \underline{c}_t = \min\bigl\{ \, a_t p^2 + b_t p + g_t( p , \min\{ p -
+ *     P^{mn}_t , P^{mx}_t - p \} ) \, : \, P^{mn}_t \leq p \leq P^{mx}_t
+ *     \, \bigr\}
+ * \f]
+ * (\f$ +\infty \f$ if \f$ P^{mn}_t > P^{mx}_t \f$), which is a lower bound
+ * on the energy and reserve terms of the instant \f$ t \f$ in any economic
+ * dispatch, since the reward of the reserves is not positive and not
+ * increasing in the band, which the ramps and the start-up and shut-down
+ * caps only narrow. Then \f$ \mathrm{ED}( i , k ) \geq \sum_{ t = i }^{ k }
+ * \underline{c}_t \f$, and giving each arc out of an on node, whose on-run
+ * is \f$ i , \ldots , k \f$, the cost \f$ \underline{\mbox{cost}}( v , w ) \f$
+ * obtained by replacing \f$ \mathrm{ED}( i , k ) \f$ with that sum in its
+ * cost, and each other arc its own cost, one has \f$ \underline{\mbox{cost}}(
+ * v , w ) \leq \mbox{cost}( v , w ) \f$. Let \f$ h( v ) \f$ be the cost of the
+ * shortest path from \f$ v \f$ to \f$ d \f$ with the costs
+ * \f$ \underline{\mbox{cost}} \f$, which costs one scan of the arcs
+ * backwards in the topological order; it accounts for the start-up and
+ * shut-down costs and for the minimum up and down times, but not for the
+ * ramps. Then \f$ h \f$ is consistent, i.e., \f$ h( v ) \leq
+ * \underline{\mbox{cost}}( v , w ) + h( w ) \leq \mbox{cost}( v , w ) + h( w )
+ * \f$ for every arc, and hence admissible, i.e., \f$ \Lambda( v ) + h( v ) \f$
+ * is a lower bound on the cost of any path from \f$ s \f$ to \f$ d \f$
+ * through \f$ v \f$ whose part up to \f$ v \f$ costs \f$ \Lambda( v ) \f$. Let
+ * \f$ U \f$ be the label of \f$ d \f$, i.e., the cost of the best schedule
+ * found so far: the arc \f$ ( s , d ) \f$ gives the first one (the unit off,
+ * or on, to the end of the horizon), and each scan of an arc into \f$ d \f$
+ * another one. A node with \f$ \Lambda( v ) + h( v ) >
+ * U + \epsilon \f$ is not expanded, i.e., neither its economic dispatch is
+ * solved nor its arcs are scanned; here \f$ \epsilon = 10^{-9} ( 1 + | U | +
+ * \sigma ) \f$, where \f$ \sigma \f$ is the sum over the instants of the
+ * absolute values of the costs (the largest that the power can give,
+ * \f$ \underline{c}_t \f$, the fixed cost, the start-up and the shut-down
+ * cost), which covers the rounding. Moreover, the recursion of the economic
+ * dispatch of an expanded on node \f$ v \f$ at \f$ i \f$ is stopped after the
+ * first instant \f$ k \f$ at which
+ * \f[
+ *   \Lambda( v ) + \min_p z_{i,k}( p ) + \sum_{ t = i }^{ k } c_t + R_k > U
+ *     + \epsilon \, , \quad R_{T-1} = 0 \, , \quad R_{k-1} = \min\bigl\{ \,
+ *     c^{sd}_k + h( ( k , 0 ) ) \, , \, \underline{c}_k + c_k + R_k \,
+ *     \bigr\} \, ,
+ * \f]
+ * and the arcs of the runs that last beyond \f$ k \f$ are given an infinite
+ * cost. In fact, \f$ R_k \f$ is a lower bound on the cost of the instants
+ * after \f$ k \f$ for a unit that is on at \f$ k \f$, whether it shuts down
+ * at some \f$ k' > k \f$ or it stays on to the end, and \f$ \min_p
+ * z_{i,k'}( p ) \geq \min_p z_{i,k}( p ) + \sum_{ t = k + 1 }^{ k' }
+ * \underline{c}_t \f$, hence any such run costs at least the left-hand
+ * side. The nodes are expanded in the topological order of min_path() if
+ * intBoundPrune is 1, which makes the search a depth-first branch-and-bound
+ * on the acyclic graph, and by increasing \f$ \Lambda( v ) + h( v ) \f$ if it
+ * is 2, i.e., by the A* search, which stops when that value exceeds
+ * \f$ U + \epsilon \f$ for all the nodes left.
+ *
+ * The result is that of intBoundPrune = 0, the schedule included. A node on
+ * an optimal path has \f$ \Lambda( v ) + h( v ) \leq z^* \leq U \f$, where
+ * \f$ z^* \f$ is the optimal value, and the same holds for the instants of
+ * the economic dispatches of the arcs of an optimal path; hence neither is
+ * pruned. Moreover, a node that gives its label to a node of an optimal path
+ * is on an optimal path itself, and therefore the labels of those nodes, and
+ * the arcs that the ties choose, are those of the full graph: with
+ * intBoundPrune = 1 the order of the scans is the same, and with
+ * intBoundPrune = 2 the scan of an arc that ties with the label of its head
+ * replaces the predecessor if the tail comes first in the topological order,
+ * which gives the predecessor that the topological order keeps. The label of
+ * a node that the A* search has already expanded may still decrease by the
+ * rounding (\f$ h \f$ is consistent in exact arithmetic only), and the node
+ * is then expanded again. With intBoundPrune nonzero the economic dispatches
+ * are solved one at a time, as their order depends on the labels, and
+ * intMaxThread is not used. */
 
 class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
 {
@@ -313,6 +387,13 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
    * overhead is not amortised and the solver stays serial. Defaults to the
    * compile-time TUDPS_PAR_MIN_N; set it to 0 to force the parallel path on
    * every horizon. */
+  intBoundPrune ,  ///< the search of the graph by bounds
+  /**< 0 (default) solves the economic dispatch of every on node and runs the
+   * shortest path in topological order; 1 searches the graph in topological
+   * order, skipping the nodes that the bound of the class comment proves
+   * useless and stopping the economic dispatches likewise; 2 (as any other
+   * value) does the same in the order of the bound, i.e., A*. The value and
+   * the schedule are those of 0. */
   intLastAlgParTUDPS ///< 1st allowed new int parameter for derived classes
   };
 
@@ -320,14 +401,28 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
 
  /// honored parameters: intMaxThread (workers) and intParMinN (threshold)
  void set_par( idx_type par , int value ) override {
-  if( par == intMaxThread ) { f_max_thread = value; return; }
-  if( par == intParMinN ) { f_par_min_n = value; return; }
+  if( par == intMaxThread ) {
+   f_max_thread = value;
+   return;
+   }
+  if( par == intParMinN ) {
+   f_par_min_n = value;
+   return;
+   }
+  if( par == intBoundPrune ) {
+   f_bound_prune = value;
+   return;
+   }
   Solver::set_par( par , value );
   }
 
  [[nodiscard]] int get_int_par( idx_type par ) const override {
-  if( par == intMaxThread ) return( f_max_thread );
-  if( par == intParMinN ) return( f_par_min_n );
+  if( par == intMaxThread )
+   return( f_max_thread );
+  if( par == intParMinN )
+   return( f_par_min_n );
+  if( par == intBoundPrune )
+   return( f_bound_prune );
   return( Solver::get_int_par( par ) );
   }
 
@@ -336,12 +431,16 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
   }
 
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
+  if( par == intBoundPrune )
+   return( 0 );
   return( par == intParMinN ? TUDPS_PAR_MIN_N
                             : Solver::get_dflt_int_par( par ) );
   }
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
+  if( name == "intBoundPrune" )
+   return( intBoundPrune );
   return( name == "intParMinN" ? intParMinN
                                : Solver::int_par_str2idx( name ) );
   }
@@ -349,6 +448,9 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
   static const std::string name = "intParMinN";
+  static const std::string bname = "intBoundPrune";
+  if( idx == intBoundPrune )
+   return( bname );
   return( idx == intParMinN ? name : Solver::int_par_idx2str( idx ) );
   }
 
@@ -369,6 +471,9 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
 
  /// computes the variable values and the total cost
  void compute_solutions( void );
+
+ /// the EDPs and the min-path at once, by bounds [see intBoundPrune]
+ void bound_search( void );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
@@ -444,6 +549,22 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
                                         std::vector< double > & p ) = 0;
 
 /*--------------------------------------------------------------------------*/
+  /// stop the next compute_costs() by a bound
+  /** If \p g is not nullptr, the next compute_costs() stops after the
+   * first \f$ k < T - 1 \f$ with \f$ \min_p z_{h,k}( p ) + g[ k ] >
+   * \f$ \p budget, and writes \f$ +\infty \f$ in costs[ k' ] for all
+   * \f$ k' > k \f$ [see intBoundPrune]; with nullptr it computes them all. */
+
+  void set_bound( const double * g , double budget ) {
+   f_bnd_g = g;
+   f_bnd_budget = budget;
+   }
+
+  /// the number of instants that the last compute_costs() went through
+
+  [[nodiscard]] Index steps( void ) const { return( f_steps ); }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -453,6 +574,10 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
   ThermalUnitDPSolver * f_solver;
 
   Index f_h;  ///< the initial time instant for this EDSolver
+
+  const double * f_bnd_g{ nullptr };  ///< the bound of set_bound()
+  double f_bnd_budget{ 0 };           ///< the budget of set_bound()
+  Index f_steps{ 0 };                 ///< the instants of compute_costs()
 
  };  // end( class( EDSolver ) )
 
@@ -642,6 +767,26 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
 
 /*--------------------------------------------------------------------------*/
 
+ /// the reserve terms eff_disc and eff_disc_su of the current costs
+ void build_reserve_discounts( void );
+
+/*--------------------------------------------------------------------------*/
+
+ /// writes the economic dispatches \p cost in the arcs of the on node \p nd
+ void set_arc_costs( node & nd , const std::vector< double > & cost );
+
+/*--------------------------------------------------------------------------*/
+
+ /// the bounds of the class comment [see intBoundPrune]
+ void build_bounds( void );
+
+/*--------------------------------------------------------------------------*/
+
+ /// the reactive term and the design in the label of d, after the path
+ void close_path( void );
+
+/*--------------------------------------------------------------------------*/
+
  /// read the fixed status of the Variable of the ThermalUnitBlock
  /** Reads which commitment (and design) Variable are fixed, translating the
   * commitment fixings into the nxt_off / nxt_on tables that build_graph()
@@ -747,8 +892,27 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
                                             ///< it acts as an ON node
  Index ed_pool_th{ 0 };            ///< time horizon the ED pool was built for
 
- int f_max_thread{ 0 };           ///< intMaxThread: 0 = all cores, 1 = serial
- int f_par_min_n{ TUDPS_PAR_MIN_N }; ///< intParMinN: min horizon for parallel
+ int f_max_thread{ 0 };  ///< intMaxThread: 0 = all cores, 1 = serial
+ int f_par_min_n{ TUDPS_PAR_MIN_N };  ///< intParMinN: min horizon for parallel
+ int f_bound_prune{ 0 };              ///< intBoundPrune: the search by bounds
+
+ /// the bounds of the class comment: f_lbp[ t ] is the sum of the least
+ /// energy and reserve terms before t (of the finite ones, f_ninf[ t ]
+ /// counting the others), f_cf[ t ] that of the fixed costs c, f_hon,
+ /// f_hoff and f_hs are h( v ) of the on nodes, of the off nodes and of s,
+ /// and f_gb[ k ] is f_cf[ k + 1 ] plus the bound of the rest of a run that
+ /// is on at k
+ std::vector< double > f_lbp , f_cf , f_hon , f_hoff , f_gb;
+ std::vector< Index > f_ninf;
+ double f_hs{ 0 };
+ double f_bscale{ 0 };  ///< the sigma of the class comment
+
+ /// what the last solve did: the on and off nodes expanded, the nodes not
+ /// expanded by the bound, the nodes expanded again, and the instants that
+ /// the economic dispatches went through
+ unsigned long f_on_exp{ 0 } , f_off_exp{ 0 } , f_bounded{ 0 } ,
+   f_reopen{ 0 } ,
+   f_ed_steps{ 0 };
 
 #if TUDPS_PARALLEL
  /// FastFlow parallel-for engine for compute_EDPs(), one per solver instance

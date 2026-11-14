@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ThermalUnitDPSolver` has the parameter `intBoundPrune` (default 0, the
+  whole graph as before): with 1 the graph is searched in topological order
+  as in a branch-and-bound, a node is not expanded, i.e., its economic
+  dispatch is not solved, when its label plus the shortest distance to the
+  destination with the economic dispatches replaced by the sums of the least
+  per-instant costs exceeds the best schedule found so far, and the economic
+  dispatch of an expanded node is stopped at the first instant after which
+  no run can be useful; with 2 the nodes are expanded in the order of the
+  same bound, i.e., A*. The optimal value and the schedule are those of 0.
+  On the Lagrangian dual of the 24-hour UC instances of T-Ramp and HT-Ramp
+  the instants that the economic dispatches go through are 4.2 (1) and 4.6
+  (2) times fewer
+- `ThermalUnitDPSolver` writes in its log, if it has one, the nodes that
+  each solve expands and does not expand and the instants of its economic
+  dispatches
 - the unit test checks the Solution of a `DCNetworkBlock` with a priced
   network and a line whose flow cannot be negative, also through netCDF,
   and the pricing of a network whose abstract representation was generated
