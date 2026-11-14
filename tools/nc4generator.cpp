@@ -107,7 +107,8 @@ struct ThermalUnit
   }
 
   StartUpCost = fixedCost;
-  // double coolCost = coolAndFuelCost * ( 1 - exp( -MinDownTime / tau ) ) + fixedCost;
+  // double coolCost = coolAndFuelCost * ( 1 - exp( -MinDownTime / tau ) ) +
+  //                   fixedCost;
   // double hotCost = hotAndFuelCost * MinDownTime + fixedCost;
   // double cost = coolCost < hotCost ? coolCost : hotCost;
  }
@@ -312,7 +313,8 @@ struct DatFile
   out << "\n";
  }
 
- friend std::ostream & operator<<( std::ostream & out , const DatFile & file ) {
+ friend std::ostream & operator<<( std::ostream & out ,
+                                   const DatFile & file ) {
   file.print( out );
   return( out );
  }
@@ -440,7 +442,8 @@ struct ModFile
   out << "HydroCascadeSection\n";
  }
 
- friend std::ostream & operator<<( std::ostream & out , const ModFile & file ) {
+ friend std::ostream & operator<<( std::ostream & out ,
+                                   const ModFile & file ) {
   file.print( out );
   return( out );
  }

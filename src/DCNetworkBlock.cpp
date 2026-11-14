@@ -191,13 +191,16 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   }
 
  ::deserialize( group , "MaxPowerFlow" ,
-		{ f_number_lines , time_instants } , v_max_power_flow , true , true );
+		{ f_number_lines , time_instants } , v_max_power_flow , true ,
+		true );
 
  ::deserialize( group , "MinPowerFlow" ,
-		{ f_number_lines , time_instants } , v_min_power_flow , true , true );
+		{ f_number_lines , time_instants } , v_min_power_flow , true ,
+		true );
 
  if( ! ::deserialize( group , "Efficiency" ,
-		      { f_number_branches , time_instants } , v_efficiency , true , true ) ) {
+		      { f_number_branches ,
+			time_instants } , v_efficiency , true , true ) ) {
   using index = boost::multi_array< double , 2 >::index;
   const std::vector< index > size = { f_number_branches , 1 };
   v_efficiency.resize( size );
@@ -488,7 +491,8 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
  const auto & end_line = get_end_line();
 
  // Compute any connected components now 
- // If the number of components is not initialized, do the computation. Otherwise rely on what is stored
+ // If the number of components is not initialized, do the computation.
+ // Otherwise rely on what is stored
  if ( get_nb_connected_components() == 0 )
   identify_connected_components();
 
@@ -539,14 +543,18 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
 
  /*
  * When only a single connected component is there, the situation is simple
- *  we pick the reference node and form the Identity matrix from which we delete that row
- * When multiple connected components are there, potentially just having a single node altogether (isolated node)
+ *  we pick the reference node and form the Identity matrix from which we
+ *  delete that row
+ * When multiple connected components are there, potentially just having a
+ * single node altogether (isolated node)
  *  then the situation consists of picking a reference node per "AC block"
  *  this too is fairly simple and consists of deleting as many rows as need be 
  *  in fact one per connected component
- * In the latter case we will not (at least for the time being) allow the user to pick a reference node per component 
+ * In the latter case we will not (at least for the time being) allow the user
+ * to pick a reference node per component
  *  and will do this for him. 
- * Should we opt to remove this freedom from the user alltogether then the code can be simplified
+ * Should we opt to remove this freedom from the user alltogether then the code
+ * can be simplified
  */ 
  SpMat I_nref = SpMat( number_nodes , number_nodes - nb_c );
  if( nb_c == 1 ) {
@@ -753,8 +761,9 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
   DCND->deserialize( group );
   if( f_NetworkData &&
       ( f_NetworkData->get_number_nodes() != DCND->get_number_nodes() ) )
-   throw( std::logic_error( "DCNetworkBlock::deserialize: NumberNodes "
-    				                    "not matching between NetworkData" ) );
+   throw( std::logic_error(
+     "DCNetworkBlock::deserialize: NumberNodes "
+     "not matching between NetworkData" ) );
   f_NetworkData = DCND;
   f_local_NetworkData = true;
   // a [DC]NetworkData has been provided, so the size of the given vector
@@ -962,8 +971,9 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   case( CYCLE ):     generate_CYCLE_constraints( stcc ); break;
   case( KIRCHHOFF ): generate_KIRCHHOFF_constraints( stcc ); break;
   default :
-   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-			                         "unknown formulation type" ) );
+   throw( std::logic_error(
+     "DCNetworkBlock::generate_abstract_constraints: "
+     "unknown formulation type" ) );
   }
 
  // generate common constraints: bounds and cost (if there)
@@ -1023,8 +1033,8 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
   /* Σ_i T_{li} p_i : only if l is a tree edge */
   if( lines_in_tree.contains( line_id ) ) {
    int sign = -lines_in_tree[ line_id ];
-   // be careful, path FROM node TO root, i.e, in the reverse contrary to the spanning tree
-   // endpoints of the DC tree edge
+   // be careful, path FROM node TO root, i.e, in the reverse contrary to the
+   // spanning tree endpoints of the DC tree edge
    Index u = start_line[ line_id ];
    Index v = end_line[ line_id ];
 
@@ -1146,16 +1156,20 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
  int i_hvdc_line = 0;
  for( auto & hvdc_l : HVDC_lines ) {
    auto lfunc_1 = new LinearFunction();
-   lfunc_1->add_variable( &v_node_injection[ 0 ][ start_line[ hvdc_l ] ], -1.0 );
+   lfunc_1->add_variable( &v_node_injection[ 0 ][ start_line[ hvdc_l ] ],
+			  -1.0 );
    lfunc_1->add_variable( &v_power_flow[ hvdc_l ], 1.0 );
    v_CYCLE_def_HVDC_const[ i_hvdc_line ].set_function( lfunc_1 );
-   v_CYCLE_def_HVDC_const[ i_hvdc_line ].set_both( -v_ActiveDemand[ start_line[ hvdc_l ] ] );
+   v_CYCLE_def_HVDC_const[ i_hvdc_line ].set_both(
+				     -v_ActiveDemand[ start_line[ hvdc_l ] ] );
 
    auto lfunc_2 = new LinearFunction();
    lfunc_2->add_variable( &v_node_injection[ 0 ][ end_line[ hvdc_l ] ], -1.0 );
    lfunc_2->add_variable( &v_power_flow[ hvdc_l ], -1.0 );
-   v_CYCLE_def_HVDC_const[ nb_hvdc_lines + i_hvdc_line ].set_function( lfunc_2 );
-   v_CYCLE_def_HVDC_const[ nb_hvdc_lines + i_hvdc_line ].set_both( -v_ActiveDemand[ end_line[ hvdc_l ] ] );
+   v_CYCLE_def_HVDC_const[ nb_hvdc_lines + i_hvdc_line ].set_function(
+								     lfunc_2 );
+   v_CYCLE_def_HVDC_const[ nb_hvdc_lines + i_hvdc_line ].set_both(
+				       -v_ActiveDemand[ end_line[ hvdc_l ] ] );
 
    ++i_hvdc_line;
  }
@@ -1650,7 +1664,8 @@ void DCNetworkBlock::generate_bound_constraints( void )
 			     "not supported" ) );
 
    // LOWER:  F_l - kappa * C_v * Pmn * x_l >= 0
-   if( const Index min_row = v_design_min_row[ l ] ; min_row < Inf< Index >() ) {
+   if( const Index min_row = v_design_min_row[ l ] ;
+       min_row < Inf< Index >() ) {
     vars.emplace_back( & v_power_flow[ l ] , 1.0 );
     vars.emplace_back( x , - kappa * f_C_v_scal * Pmn );
     v_power_flow_limit_design_min_const[ min_row ].set_lhs( 0.0 );
@@ -2121,7 +2136,7 @@ void DCNetworkBlock::change_active_demand_constraints(
    break;
   default:
    throw( std::logic_error(
-    "DCNetworkBlock::change_active_demand_constraints: unknown formulation type"
+   "DCNetworkBlock::change_active_demand_constraints: unknown formulation type"
    ) );
   }
  }  // end( DCNetworkBlock::change_active_demand_constraints )
@@ -2399,8 +2414,9 @@ void DCNetworkBlock::set_network_cost( MF_dbl_sp values ,
     // GroupModification, so that a Solver able to write a whole set of
     // them in one operation does that instead of one call per element
     // [see MILPSolver::process_group_modification()]
-    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-                                      open_channel( par2chnl( issueAMod ) ) ) );
+    auto nAM =
+      un_ModBlock( make_par( par2mod( issueAMod ) ,
+                             open_channel( par2chnl( issueAMod ) ) ) );
 
     if( idx == Inf< Index >() )
      throw( std::logic_error(
@@ -2508,8 +2524,9 @@ void DCNetworkBlock::set_network_cost( MF_dbl_sp values ,
     // GroupModification, so that a Solver able to write a whole set of
     // them in one operation does that instead of one call per element
     // [see MILPSolver::process_group_modification()]
-    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-                                      open_channel( par2chnl( issueAMod ) ) ) );
+    auto nAM =
+      un_ModBlock( make_par( par2mod( issueAMod ) ,
+                             open_channel( par2chnl( issueAMod ) ) ) );
 
     if( idx == Inf< Index >() )
      throw( std::logic_error(
@@ -2744,10 +2761,11 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
    // MinP_i == 0 there, which no kappa can change
 
    // LOWER bound:  F_i - kappa * C_v * MinP_i * x_i >= 0
-   if( const Index min_row = v_design_min_row[ i ] ; min_row < Inf< Index >() ) {
+   if( const Index min_row = v_design_min_row[ i ] ;
+       min_row < Inf< Index >() ) {
     double lower_coeff_x = -kappa * f_C_v_scal * get_min_power_flow( i );
     auto * lf_low = static_cast< LinearFunction * >(
-		 v_power_flow_limit_design_min_const[ min_row ].get_function() );
+	       v_power_flow_limit_design_min_const[ min_row ].get_function() );
     lf_low->modify_coefficient( 1 , lower_coeff_x , nAM );
     }
 

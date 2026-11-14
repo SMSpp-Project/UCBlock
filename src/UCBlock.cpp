@@ -1002,7 +1002,8 @@ void UCBlock::build_carrier_networks( void )
     if( ! nb )
      throw( std::invalid_argument( "UCBlock::deserialize: " +
 				   cd.network_block_classname + " of Carrier_"
-				   + std::to_string( c ) + " not a NetworkBlock"
+				   + std::to_string( c ) +
+				   " not a NetworkBlock"
 				   ) );
     cd.v_network_blocks[ n ] = nb;
     nb->set_NetworkData( cd.f_NetworkData );
@@ -1955,7 +1956,7 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
    sol->v_carrier_duals.resize( get_number_carriers() );
    for( Index c = 1 ; c < get_number_carriers() ; ++c )
     sol->v_carrier_duals[ c ].resize(
-		mad2::extent_gen()[ get_time_horizon() ][ get_number_nodes( c ) ] );
+	   mad2::extent_gen()[ get_time_horizon() ][ get_number_nodes( c ) ] );
    }
   }
 
@@ -2143,7 +2144,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
   const auto nn = get_number_nodes( c );
   if( ! cd.v_network_blocks.empty() ) {
    boost::multi_array< double , 2 > demand( boost::extents[ nn ]
-					                    [ f_time_horizon ] );
+							  [ f_time_horizon ] );
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     const auto [ nw , i ] = cd.v_network_of_instant[ t ];
     const auto d = cd.v_network_blocks[ nw ]->get_active_demand( i );
@@ -2960,7 +2961,8 @@ void UCBlock::set_network_active_demand( MF_dbl_sp values ,
  // the NetworkBlock covering each instant, and the interval of the instant
  // in it (f_number_networks if none does)
  std::vector< std::pair< Index , Index > > where(
-				    f_time_horizon , { f_number_networks , 0 } );
+				    f_time_horizon ,
+				    { f_number_networks , 0 } );
  for( Index n = 0 , t = 0 ; n < f_number_networks ; ++n ) {
   auto nb = v_network_blocks[ n ];
   if( ! nb )
@@ -3730,9 +3732,10 @@ static NetworkBlockSolution * network_solution( const netCDF::NcGroup & g ,
 // read in sols the NetworkBlockSolution in the group "NetworkBlock" of a
 // group, stacked or compressed, where says where it is in the exceptions
 
-static void deserialize_networks( const netCDF::NcGroup & nb ,
-				  std::vector< NetworkBlockSolution * > & sols ,
-				  const std::string & where )
+static void deserialize_networks(
+		   const netCDF::NcGroup & nb ,
+		   std::vector< NetworkBlockSolution * > & sols ,
+		   const std::string & where )
 {
  if( ! stacked_size( nb ) ) {  // compressed format
   NetworkBlockSolution::deserialize( nb , sols );

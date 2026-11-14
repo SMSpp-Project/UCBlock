@@ -847,14 +847,14 @@ class DCNetworkData : public NetworkData
   * identify_connected_components() is called. */
 
  std::vector< std::vector< Index > > & get_subgraphs( void ) {
-  return v_nodes_in_component;
+  return( v_nodes_in_component );
   }
 
 /*--------------------------------------------------------------------------*/
  /// the number of components, 0 until they are computed
 
  size_t get_nb_connected_components( void ) const {
-  return nb_components;
+  return( nb_components );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3223,8 +3223,8 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
                                  *   [see
                                  *   DCNetworkBlock::get_auxiliary_variable()],
                                  *   or the flow of line l if it cannot be
-                                 *   negative; empty if the flows are not held or no
-                                 *   line has a cost */
+                                 *   negative; empty if the flows are not held
+                                 *   or no line has a cost */
 
  std::vector< double > v_cost;  /**< v_cost[ l ] = dual price of the flow
                                  *   limits of line l [see

@@ -441,11 +441,13 @@ bool HydroSystemUnitBlock::is_feasible( bool useabstract ,
  // the sub-Block are checked with the same tolerance and type of violation,
  // unless they have their own in their BlockConfig
  SimpleConfiguration< std::pair< double , int > > subc(
-                                  std::pair< double , int >( tol , rel_viol ) );
+                                  std::pair< double , int >( tol ,
+                                                             rel_viol ) );
  for( const auto & sbi : get_nested_Blocks() )
   if( ! sbi->is_feasible( useabstract ,
                           ( sbi->get_BlockConfig() &&
-                            sbi->get_BlockConfig()->f_is_feasible_Configuration )
+                            sbi->get_BlockConfig()
+                             ->f_is_feasible_Configuration )
                           ? nullptr : & subc ) )
    return( false );
 

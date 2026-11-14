@@ -271,10 +271,11 @@ void HydroUnitBlock::check_data_consistency( void ) const
 
  for( Index arc = 0 ; arc < v_StartArc.size() ; ++arc ) {
   if( v_StartArc[ arc ] >= f_NumberReservoirs )
-   throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
-                            "StartArc of arc " + std::to_string( arc ) +
-                            " is " + std::to_string( v_StartArc[ arc ] ) +
-                            ", but it must be smaller than NumberReservoirs" ) );
+   throw( std::logic_error(
+     "HydroUnitBlock::check_data_consistency: "
+     "StartArc of arc " + std::to_string( arc ) +
+     " is " + std::to_string( v_StartArc[ arc ] ) +
+     ", but it must be smaller than NumberReservoirs" ) );
   if( v_EndArc[ arc ] > f_NumberReservoirs )
    throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
                             "EndArc of arc " + std::to_string( arc ) +
@@ -731,8 +732,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
      if( ! v_SecondaryRho.empty() )  // if unit produces any secondary reserve
-      vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
-                                      1.0 ) );
+      vars.push_back( std::make_pair(
+        get_secondary_spinning_reserve( arc , t ) , 1.0 ) );
 
     MaxPowerPrimarySecondary_Const[ t ][ arc ].set_lhs( -Inf< double >() );
 
@@ -769,8 +770,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
      if( ! v_SecondaryRho.empty() )  // if unit produces any secondary reserve
-      vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
-                                      -1.0 ) );
+      vars.push_back( std::make_pair(
+        get_secondary_spinning_reserve( arc , t ) , -1.0 ) );
 
     if( ! v_MinPower.empty() )
      MinPowerPrimarySecondary_Const[ t ][ arc ].set_lhs(
@@ -812,14 +813,14 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
       }
      else
       if( ( MaxF <= 0 ) && ( MinF < 0 ) ) {  // Pumps: pr_hydro == 0
-       vars.push_back( std::make_pair( get_primary_spinning_reserve( arc , t ) ,
-                                       1.0 ) );
+       vars.push_back( std::make_pair(
+         get_primary_spinning_reserve( arc , t ) , 1.0 ) );
        ActivePowerPrimary_Const[ t ][ arc ].set_both( 0.0 );
        }
       else {  // MinF == MaxF == 0: f_hydro == pr_hydro [== 0]
        vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
-       vars.push_back( std::make_pair( get_primary_spinning_reserve( arc , t ) ,
-                                       -1.0 ) );
+       vars.push_back( std::make_pair(
+         get_primary_spinning_reserve( arc , t ) , -1.0 ) );
        ActivePowerPrimary_Const[ t ][ arc ].set_both( 0.0 );
        }
 
@@ -850,8 +851,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( ( MinF >= 0 ) && ( MaxF > 0 ) ) {  // Turbines
       vars.push_back( std::make_pair( get_active_power( arc , t ) ,
                                       v_SecondaryRho[ t ][ arc ] ) );
-      vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
-                                      -1.0 ) );
+      vars.push_back( std::make_pair(
+        get_secondary_spinning_reserve( arc , t ) , -1.0 ) );
 
       ActivePowerSecondary_Const[ t ][ arc ].set_lhs( 0.0 );
       ActivePowerSecondary_Const[ t ][ arc ].set_rhs( Inf< double >() );
@@ -865,8 +866,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
        }
       else {  // MinF == MaxF == 0: f_hydro == sr_hydro [== 0]
        vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
-       vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
-                                       -1.0 ) );
+       vars.push_back( std::make_pair(
+         get_secondary_spinning_reserve( arc , t ) , -1.0 ) );
 
        ActivePowerSecondary_Const[ t ][ arc ].set_both( 0.0 );
        }
@@ -1065,7 +1066,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
    RampUp_Const[ 0 ][ arc ].set_function(
     new LinearFunction( std::move( vars ) ) );
 
-   for( Index t = 1 , cnstr_idx = 1 ; t < f_time_horizon ; ++t , ++cnstr_idx ) {
+   for( Index t = 1 , cnstr_idx = 1 ; t < f_time_horizon ;
+	++t , ++cnstr_idx ) {
     vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
     vars.push_back( std::make_pair( get_flow_rate( arc , t - 1 ) , -1.0 ) );
 
@@ -1097,7 +1099,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
    RampDown_Const[ 0 ][ arc ].set_function(
 				 new LinearFunction( std::move( vars ) ) );
 
-   for( Index t = 1 , cnstr_idx = 1 ; t < f_time_horizon ; ++t , ++cnstr_idx ) {
+   for( Index t = 1 , cnstr_idx = 1 ; t < f_time_horizon ;
+	++t , ++cnstr_idx ) {
     vars.push_back( std::make_pair( get_flow_rate( arc , t - 1 ) , 1.0 ) );
     vars.push_back( std::make_pair( get_flow_rate( arc , t ) , -1.0 ) );
 
@@ -1158,8 +1161,10 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
           lfunc_2->add_variable( & v_active_power[ g ][ t ], -1.0 );
         }
         lfunc_2->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
-        Reference_Schedule_Const[ f_time_horizon + t ].set_lhs( -Inf< double >() );
-        Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[ t ] );
+        Reference_Schedule_Const[ f_time_horizon +
+                                  t ].set_lhs( -Inf< double >() );
+        Reference_Schedule_Const[ f_time_horizon +
+                                  t ].set_rhs( -v_RefSchedule[ t ] );
         Reference_Schedule_Const[ f_time_horizon + t ].set_function( lfunc_2 );
    }
    add_static_constraint( Reference_Schedule_Const,
@@ -1170,7 +1175,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( f_reactive_power && 
-     ( ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) ) ) {
+     ( ( ! v_MinReactivePower.empty() ) ||
+       ( ! v_MaxReactivePower.empty() ) ) ) {
   if( ReactivePower_Bound_Const.empty() )
    ReactivePower_Bound_Const.resize(
                           boost::extents[ f_NumberArcs ][ f_time_horizon ] );
@@ -1264,7 +1270,8 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast<
+		 SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -1285,8 +1292,10 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
   // Constraints
-  && RowConstraint::is_feasible( MaxPowerPrimarySecondary_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( MinPowerPrimarySecondary_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( MaxPowerPrimarySecondary_Const , tol ,
+				 rel_viol )
+  && RowConstraint::is_feasible( MinPowerPrimarySecondary_Const , tol ,
+				 rel_viol )
   && RowConstraint::is_feasible( ActivePowerPrimary_Const , tol , rel_viol )
   && RowConstraint::is_feasible( ActivePowerSecondary_Const , tol , rel_viol )
   && RowConstraint::is_feasible( FlowActivePower_Const , tol , rel_viol )
@@ -1298,7 +1307,8 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( FinalVolumeReservoir_Const , tol , rel_viol )
   && RowConstraint::is_feasible( VolumetricBounds_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Reference_Schedule_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol ,
+				 rel_viol ) );
 
  } // end( HydroUnitBlock::is_feasible )
 
@@ -1914,8 +1924,8 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_sp values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( const Block::Subset & arcs ,
-                                                         c_ModParam issueAMod )
+void HydroUnitBlock::update_initial_flow_rate_in_cnstrs(
+			    const Block::Subset & arcs , c_ModParam issueAMod )
 {
  if( ! constraints_generated() )
   return;
@@ -2038,7 +2048,8 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_sp values ,
    std::sort( subset.begin() , subset.end() );
 
   Block::add_Modification( std::make_shared< HydroUnitBlockSbstMod >(
-                            this , HydroUnitBlockMod::eSetInitF , std::move( subset ) ) ,
+                            this , HydroUnitBlockMod::eSetInitF ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }  // end( HydroUnitBlock::set_initial_flow_rate( subset ) )
@@ -2168,8 +2179,9 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_sp values ,
      // GroupModification, so that a Solver able to write a whole set of
      // them in one operation does that instead of one call per element
      // [see MILPSolver::process_group_modification()]
-     auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-                                       open_channel( par2chnl( issueAMod ) ) ) );
+     auto nAM =
+       un_ModBlock( make_par( par2mod( issueAMod ) ,
+                              open_channel( par2chnl( issueAMod ) ) ) );
 
      lf->modify_coefficient( idx ,
                              v_ActivePowerCost[ arc ] ,
@@ -2253,8 +2265,9 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_sp values ,
      // GroupModification, so that a Solver able to write a whole set of
      // them in one operation does that instead of one call per element
      // [see MILPSolver::process_group_modification()]
-     auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-                                       open_channel( par2chnl( issueAMod ) ) ) );
+     auto nAM =
+       un_ModBlock( make_par( par2mod( issueAMod ) ,
+                              open_channel( par2chnl( issueAMod ) ) ) );
 
      lf->modify_coefficient( idx ,
                              v_ActivePowerCost[ arc ] ,
@@ -2331,8 +2344,9 @@ void HydroUnitBlockSolution::read( const Block * block )
 {
  auto HUB = dynamic_cast< const HydroUnitBlock * >( block );
  if( ! HUB )
-  throw( std::invalid_argument( "HydroUnitBlockSolution::read: block is "
-				                            "not a HydroUnitBlock" ) );
+  throw( std::invalid_argument(
+    "HydroUnitBlockSolution::read: block is "
+    "not a HydroUnitBlock" ) );
 
  UnitBlockSolution::read( HUB );  // call the method of the base class
 
@@ -2361,12 +2375,14 @@ void HydroUnitBlockSolution::write( Block * block )
 
  auto HUB = dynamic_cast< HydroUnitBlock * >( block );
  if( ! HUB )
-  throw( std::invalid_argument( "HydroUnitBlockSolution::write: block is "
-			                            	"not a HydroUnitBlock" ) );
+  throw( std::invalid_argument(
+    "HydroUnitBlockSolution::write: block is "
+    "not a HydroUnitBlock" ) );
 
  if(  f_reservoirs != HUB->get_number_reservoirs() )
-  throw( std::invalid_argument( "HydroUnitBlockSolution::write: "
-				                            "inconsistent number of reservoirs" ) );
+  throw( std::invalid_argument(
+    "HydroUnitBlockSolution::write: "
+    "inconsistent number of reservoirs" ) );
 
  if( ! v_volume.empty() )
   for( Index i = 0 ; i < f_reservoirs ; ++i ) {
@@ -2452,12 +2468,14 @@ void HydroUnitBlockSolution::sum( const Solution * solution ,
 
  auto HUBS = dynamic_cast< const HydroUnitBlockSolution * >( solution );
  if( ! HUBS )
-  throw( std::invalid_argument( "HydroUnitBlockSolution::sum: solution not "
-				                            "a HydroUnitBlockSolution" ) );
+  throw( std::invalid_argument(
+    "HydroUnitBlockSolution::sum: solution not "
+    "a HydroUnitBlockSolution" ) );
 
  if( f_reservoirs != HUBS->f_reservoirs )
-  throw( std::invalid_argument( "HydroUnitBlockSolution::sum: inconsistent "
-				                            "number of reservoirs" ) );
+  throw( std::invalid_argument(
+    "HydroUnitBlockSolution::sum: inconsistent "
+    "number of reservoirs" ) );
 
  if( ! v_volume.empty() )
   for( Index i = 0 ; i < f_reservoirs ; ++i )

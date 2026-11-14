@@ -366,7 +366,8 @@ void NuclearUnitExtDPSolver::start_labels( Index t , Index e ,
 NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::start_label(
                                                    Index t , Index e ) const
 {
- if( on_forced( t ) )                 // a modulation fixed at t: m_t <= 1 - v_t
+ if( on_forced( t ) )                 // a modulation fixed at t: m_t <= 1 -
+				      // v_t
   return( NO_LABEL );
  Label l = off_label( e );
  if( ( f_starts_per_day >= 0 ) && ( l.s >= Index( f_starts_per_day ) ) )

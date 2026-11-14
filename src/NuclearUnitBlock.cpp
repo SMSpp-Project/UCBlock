@@ -1007,7 +1007,8 @@ void NuclearUnitBlock::generate_operating_rules( void )
                       coeff_pair( band( 2 , t ) , - pmax ) } , -INF , 0 );
 
    // e_t = m_t ( 1 - m_{t+1} ), the last step of a modulation
-   row( ModulationEndLink[ t ] , { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
+   row( ModulationEndLink[ t ] , { coeff_pair( & v_modulation_end[ t ] ,
+					       1.0 ) ,
                               coeff_pair( & v_modulation[ t ] , -1.0 ) } ,
         -INF , 0 );
    if( t + 1 < T ) {

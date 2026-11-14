@@ -197,15 +197,19 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                            "MinCapacityDesign must be nonnegative." ) );
 
- // Continue case (MaxCapacityDesign > 0): MinCapacityDesign <= MaxCapacityDesign
- if( ( f_MaxCapacityDesign > 0 ) && ( f_MinCapacityDesign > f_MaxCapacityDesign ) )
+ // Continue case (MaxCapacityDesign > 0): MinCapacityDesign <=
+ // MaxCapacityDesign
+ if( ( f_MaxCapacityDesign > 0 ) &&
+     ( f_MinCapacityDesign > f_MaxCapacityDesign ) )
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                            "MinCapacityDesign > MaxCapacityDesign." ) );
 
  // Unitary case (|MaxCapacityDesign| == 1): MinCapacityDesign <= 1
- if( ( std::abs( f_MaxCapacityDesign ) == 1 ) && ( f_MinCapacityDesign > 1.0 ) )
-  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
-                           "MinCapacityDesign must be <= 1 when |MaxCapacityDesign| == 1." ) );
+ if( ( std::abs( f_MaxCapacityDesign ) == 1 ) &&
+     ( f_MinCapacityDesign > 1.0 ) )
+  throw( std::logic_error(
+    "IntermittentUnitBlock::check_data_consistency: "
+    "MinCapacityDesign must be <= 1 when |MaxCapacityDesign| == 1." ) );
 
  // Integer case (max < 0): MinCapacityDesign <= |MaxCapacityDesign|
  if( ( f_MaxCapacityDesign < 0 ) &&
@@ -217,10 +221,11 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
  // Scale and design granularity are two equivalent ways to model multiple
  // identical modules; combining them with both > 1 over-counts the fleet.
  if( ( get_scale() != 1 ) && ( std::abs( f_MaxCapacityDesign ) > 1 ) )
-  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
-                           "cannot combine Scale != 1 with "
-                           "|MaxCapacityDesign| > 1; they represent the "
-                           "same multi-module fleet and would double-count." ) );
+  throw( std::logic_error(
+    "IntermittentUnitBlock::check_data_consistency: "
+    "cannot combine Scale != 1 with "
+    "|MaxCapacityDesign| > 1; they represent the "
+    "same multi-module fleet and would double-count." ) );
 
  // Minimum and maximum power
 
@@ -229,11 +234,12 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( v_MinPower[ t ] > v_MaxPower[ t ] )
-   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
-                             "minimum power at time " + std::to_string( t ) +
-                             " is " + std::to_string( v_MinPower[ t ] ) +
-                             ", which is greater than the maximum power, which "
-                             "is " + std::to_string( v_MaxPower[ t ] ) + "." ) );
+   throw( std::logic_error(
+     "IntermittentUnitBlock::check_data_consistency: "
+     "minimum power at time " + std::to_string( t ) +
+     " is " + std::to_string( v_MinPower[ t ] ) +
+     ", which is greater than the maximum power, which "
+     "is " + std::to_string( v_MaxPower[ t ] ) + "." ) );
   // a design multiplies the powers in its rows, where an infinite one would
   // be an infinite coefficient
   if( ( f_InvestmentCost != 0 ) &&
@@ -352,7 +358,8 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc )
+void IntermittentUnitBlock::generate_abstract_constraints(
+						     Configuration * stcc )
 {
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
@@ -479,7 +486,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &design , -f_kappa * v_MaxPower[ t ] ) );
 
-   active_power_bounds_design_Const[ max_row ][ t ].set_lhs( -Inf< double >() );
+   active_power_bounds_design_Const[ max_row ][ t ].set_lhs(
+     -Inf< double >() );
    active_power_bounds_design_Const[ max_row ][ t ].set_rhs( 0.0 );
    active_power_bounds_design_Const[ max_row ][ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
@@ -603,7 +611,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   }
 
  // Maximum and Minimum generation constraints (if any)
- if( ( f_MaxGeneration < Inf< double >() ) || ( f_MinGeneration > -Inf< double >() ) ) {
+ if( ( f_MaxGeneration < Inf< double >() ) ||
+     ( f_MinGeneration > -Inf< double >() ) ) {
 
   LinearFunction::v_coeff_pair vpair( f_time_horizon ,
     std::make_pair( nullptr , 1 ) );
@@ -612,9 +621,11 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   
   MaxMinGeneration_Const.set_lhs( f_MinGeneration );
   MaxMinGeneration_Const.set_rhs( f_MaxGeneration );
-  MaxMinGeneration_Const.set_function( new LinearFunction( std::move( vpair ) ) );
+  MaxMinGeneration_Const.set_function(
+    new LinearFunction( std::move( vpair ) ) );
   
-  add_static_constraint( MaxMinGeneration_Const , "MaxMinGeneration_intermittent" );
+  add_static_constraint( MaxMinGeneration_Const ,
+			 "MaxMinGeneration_intermittent" );
  }
 
  set_constraints_generated();
@@ -684,7 +695,8 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast<
+		 SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -707,9 +719,11 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
   && RowConstraint::is_feasible( min_power_Const , tol , rel_viol )
   && RowConstraint::is_feasible( design_bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( max_power_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( active_power_bounds_design_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( active_power_bounds_design_Const , tol ,
+				 rel_viol )
   && RowConstraint::is_feasible( active_power_bounds_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol ,
+				 rel_viol ) );
 
 }  // end( IntermittentUnitBlock::is_feasible )
 
@@ -1111,7 +1125,7 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_sp values ,
  for( auto t : subset )
   if( t >= v_ActivePowerCost.size() )
    throw( std::invalid_argument(
-    "IntermittentUnitBlock::set_active_power_cost: invalid index in subset." ) );
+  "IntermittentUnitBlock::set_active_power_cost: invalid index in subset." ) );
 
  auto values_it = values.begin();
 
@@ -1141,8 +1155,9 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_sp values ,
     // GroupModification, so that a Solver able to write a whole set of
     // them in one operation does that instead of one call per element
     // [see MILPSolver::process_group_modification()]
-    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-                                      open_channel( par2chnl( issueAMod ) ) ) );
+    auto nAM =
+      un_ModBlock( make_par( par2mod( issueAMod ) ,
+                             open_channel( par2chnl( issueAMod ) ) ) );
 
     if( idx == Inf< Index >() )
      throw( std::logic_error(
@@ -1215,8 +1230,9 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_sp values ,
     // GroupModification, so that a Solver able to write a whole set of
     // them in one operation does that instead of one call per element
     // [see MILPSolver::process_group_modification()]
-    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-                                      open_channel( par2chnl( issueAMod ) ) ) );
+    auto nAM =
+      un_ModBlock( make_par( par2mod( issueAMod ) ,
+                             open_channel( par2chnl( issueAMod ) ) ) );
 
     if( idx == Inf< Index >() )
      throw( std::logic_error(
@@ -1283,8 +1299,9 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_sp values ,
     // the whole cascade is one group, so that a Solver can change every side
     // with one call and every coefficient with another, instead of paying a
     // call per period
-    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-                                      open_channel( par2chnl( issueAMod ) ) ) );
+    auto nAM =
+      un_ModBlock( make_par( par2mod( issueAMod ) ,
+                             open_channel( par2chnl( issueAMod ) ) ) );
 
     // with a design the bound is only the lower fence, its right-hand side
     // stays infinite and the maximum power is a coefficient of the rows below
@@ -1382,7 +1399,8 @@ double IntermittentUnitBlock::get_kappa_linearization( void ) const {
   *
   * - The maximum total amount of power produced by the unit:
   *
-  *   gamma * p^{ac}_{t} + p^{pr}_{t} + p^{sc}_{t} <= gamma * kappa * P^{mx}_{t}
+  *   gamma * p^{ac}_{t} + p^{pr}_{t} + p^{sc}_{t} <= gamma * kappa *
+  *   P^{mx}_{t}
   *
   * By letting lambda_min and lambda_max be the dual variables associated with
   * the lower and upper bound constraints on the active power, respectively,
