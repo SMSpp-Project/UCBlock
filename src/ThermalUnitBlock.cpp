@@ -1938,9 +1938,16 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
                                         get_operational_min_power( t ) ) ) );
     }
 
+    // at 0, for a unit on before the horizon, the output before the
+    // shut-down is InitialPower, hence the cap is the smaller of the two;
+    // this makes the row imply the ramp-down row of the reserves at 0
     if( t >= init_t )
      vars.push_back( std::make_pair( &v_shut_down[ t - init_t ] ,
-                                     -( v_ShutDownLimit[ t ] -
+                                     -( ( ( t == 0 ) &&
+                                          ( f_InitUpDownTime > 0 ) ?
+                                          std::min( v_ShutDownLimit[ 0 ] ,
+                                                    f_InitialPower ) :
+                                          v_ShutDownLimit[ t ] ) -
                                         get_operational_min_power( t ) -
                                         v_DeltaRampDown[ t ] ) ) );
 
@@ -2875,7 +2882,8 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
  {
   const bool has_pr = ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() );
   const bool has_sr = ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() );
-  if( has_pr || has_sr ) {
+  // with TRes the rows of the T formulation on p_t + r_t imply these
+  if( ( has_pr || has_sr ) && ( ! f_res_in_T ) ) {
    const bool has_ru = ! v_DeltaRampUp.empty();
    const bool has_rd = ! v_DeltaRampDown.empty();
    // the transitions t - 1 -> t, including -1 -> 0 if the unit is on before

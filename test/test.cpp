@@ -8837,11 +8837,11 @@ static TUData reserve_TU( int i )
  * dynamic programming Solvers, whose schedule satisfies the rows; a unit
  * that shuts down at 0 leaves the row slack; the rows at 0 follow a
  * change of InitialPower; with the reserves in the rows of the T
- * formulation (TRes, with and without PCuts) the random instances have the
- * same optimum as with the T formulation, and a continuous relaxation that
- * is not weaker; and a NuclearUnitBlock with reserves gives the same value
- * to the :MILPSolver and to NuclearUnitExtDPSolver when its primary reserve
- * is rewarded. */
+ * formulation (TRes, with and without PCuts) the rows of the reserves are
+ * not written, and the random instances have the same optimum as with the
+ * T formulation, and a continuous relaxation that is not weaker; and a
+ * NuclearUnitBlock with reserves gives the same value to the :MILPSolver
+ * and to NuclearUnitExtDPSolver when its primary reserve is rewarded. */
 
 static void test_thermal_reserve_t0( void )
 {
@@ -8980,6 +8980,9 @@ static void test_thermal_reserve_t0( void )
                      ", wf " + std::to_string( wf ) + " (" + describe( d ) +
                      ")";
    check( tub->has_reserves_in_T() , what + ": TRes not set" );
+   check( ( ! rows( tub ) ) || rows( tub )->empty() ,
+          what + ": the rows of the reserves are written, although the "
+          "rows of the T formulation imply them" );
    const auto v = milp_value( tub , sname );
    check( close( v , vr ) , what + ": " + sname + " gives " + str( v ) +
           " instead of " + str( vr ) );

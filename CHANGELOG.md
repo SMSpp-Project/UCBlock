@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `set_auxiliary_variable()` takes as many; the netCDF format of
   `DCNetworkBlockSolution` does not change, `AuxiliaryValue` keeping one
   entry for each line, the flow for a line with no auxiliary variable
+- with the reserves in the rows of the T formulation (`TRes`),
+  `ThermalUnitBlock` no longer writes the rows `Reserve_Const_Thermal`,
+  which those rows imply; for this, in the ramp-down row at 0 of the
+  T formulation of a unit on before the horizon the shut-down limit is
+  capped by `InitialPower`, the output before a shut-down at 0. The
+  optimal value and the continuous relaxation are those of before
 
 ### Fixed
 

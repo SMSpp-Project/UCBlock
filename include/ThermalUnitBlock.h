@@ -842,7 +842,10 @@ class ThermalUnitBlock : public UnitBlock
   *   row do not depend on the data. For binary
   *   commitments (12) is \f$ p^{ac}_t - p^{ac}_{t-1} \leq \Delta^+_t \f$ on
   *   at \f$ t - 1 \f$ and \f$ t \f$, \f$ p^{ac}_t \leq P^{su}_t \f$ at a
-  *   start-up, and the same holds for (13).
+  *   start-up, and the same holds for (13). At \f$ t = 0 \f$, for a unit
+  *   on before the horizon, \f$ P^{sd}_0 \f$ is replaced in (13) by
+  *   \f$ \min\{ P^{sd}_0 , p_{-1} \} \f$, which is valid since the output
+  *   before a shut-down at 0 is \f$ p_{-1} \f$.
   *
   * - pt formulation, for \f$ t \geq 1 \f$:
   *   \f{align*}{
@@ -1179,7 +1182,8 @@ class ThermalUnitBlock : public UnitBlock
   *   \tag{28}
   * \f]
   * and, with \f$ r_t = p^{pr}_t + p^{sc}_t \f$ (the reserve that has no
-  * variable being 0), for every formulation ("Reserve_Const_Thermal")
+  * variable being 0), for every formulation but T with TRes (see below)
+  * ("Reserve_Const_Thermal")
   * \f{align*}{
   *   & P^{mn}_t u_t \leq p^{ac}_t - r_t
   *     && t \in \mathcal{T} \; , \tag{29} \\
@@ -1247,7 +1251,12 @@ class ThermalUnitBlock : public UnitBlock
   * \f$ p^{ac}_t + r_t \f$. The rows (26) are not changed: their terms in
   * \f$ w_{t+1+s} \f$, \f$ s \geq 1 \f$, bound the output at \f$ t \f$
   * by a shut-down that comes later, and nothing bounds \f$ r_t \f$ by the
-  * output after \f$ t \f$. The rows (28)-(32) are still written.
+  * output after \f$ t \f$. The rows (28) are still written, while (29)-(32)
+  * are not, since the rows above imply them: (29) is (19), (30) is implied
+  * by (22)-(25), and, as \f$ v_t \leq 1 - u_{t-1} \f$ and \f$ w_t \leq 1 -
+  * u_t \f$, (12) and (13) have right-hand sides not larger than those of
+  * (31) and (32) (at \f$ t = 0 \f$ thanks to the cap \f$ \min\{ P^{sd}_0 ,
+  * p_{-1} \} \f$ of (13)).
   *
   * <b>Perspective reformulation</b> ("Init_PC_Const_Thermal",
   * "Max_SUSD_PC_Const_Thermal", "Eq_PC_Const_Thermal"), with PCuts. For
