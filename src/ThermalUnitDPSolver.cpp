@@ -1378,7 +1378,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   else
    unc_p[ k ] = std::min( m[ 1 ] ,
 			  std::max( m[ 0 ] ,
-				    -coeffs[ 0 ].beta / ( 2 * coeffs[ 0 ].alfa )
+				    -coeffs[ 0 ].beta /
+				    ( 2 * coeffs[ 0 ].alfa )
 				    ) );
 
   /* Initialize the vector of constrained power values, that will be
@@ -1888,7 +1889,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables(
 
  for( Index t = k ; t-- > f_h ; ) {
   /* Project unconstrained optimal value unc_p[ t ] on the interval:
-   * [ p[ t + 1 ] - delta_ramp_up[ t + 1 ] , p[ t + 1 ] + delta_ramp_down[ t + 1 ] ]
+   * [ p[ t + 1 ] - delta_ramp_up[ t + 1 ] ,
+   *   p[ t + 1 ] + delta_ramp_down[ t + 1 ] ]
    *
    * If the unconstrained optimal value is on the left of the interval,
    * then the optimal power value is the left endpoint of the function.

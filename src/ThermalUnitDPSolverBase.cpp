@@ -621,7 +621,7 @@ std::pair< double , double > ThermalUnitDPSolverBase::min_over(
  const PQFun & F , double lo , double hi )
 {
  if( F.empty() || lo > hi + 1e-12 )
-  return std::make_pair( TUEDPINF , 0.0 );
+  return( std::make_pair( TUEDPINF , 0.0 ) );
 
  double best_v = TUEDPINF;
  double best_p = 0;
@@ -641,7 +641,7 @@ std::pair< double , double > ThermalUnitDPSolverBase::min_over(
    }
   }
 
- return std::make_pair( best_v , best_p );
+ return( std::make_pair( best_v , best_p ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1081,9 +1081,9 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
 #endif
   const double qL = std::max( p - wu , domL );
   const double qR = std::min( p + wd , domR );
-  if( qL > qR + 1e-12 ) return std::make_pair( TUEDPINF , 0.0 );
+  if( qL > qR + 1e-12 ) return( std::make_pair( TUEDPINF , 0.0 ) );
   if( qR - qL <= 1e-12 )                 // degenerate window: single point
-   return std::make_pair( evalF( qL ) + corr( qL , p ) , qL );
+   return( std::make_pair( evalF( qL ) + corr( qL , p ) , qL ) );
   const double A = Aband( p );
   static thread_local std::vector< double > qs;
   qs.clear();
@@ -1153,7 +1153,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
 #if TUEDPS_PROFILE
   if( corr( bestq , p ) > 1e-9 ) { ++g_gmin_bite; corr_hit = true; }
 #endif
-  return std::make_pair( best , bestq );
+  return( std::make_pair( best , bestq ) );
   };
  auto Geval = [ & ]( double p ) -> double { return( Gmin( p ).first ); };
 
@@ -1170,9 +1170,9 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
  auto Gtrue = [ & ]( double p ) -> std::pair< double , double > {
   const double qL = std::max( p - wu , domL );
   const double qR = std::min( p + wd , domR );
-  if( qL > qR + 1e-12 ) return std::make_pair( TUEDPINF , 0.0 );
+  if( qL > qR + 1e-12 ) return( std::make_pair( TUEDPINF , 0.0 ) );
   auto phi = [ & ]( double q ) { return( evalF( q ) + corr( q , p ) ); };
-  if( qR - qL <= 1e-13 ) return std::make_pair( phi( qL ) , qL );
+  if( qR - qL <= 1e-13 ) return( std::make_pair( phi( qL ) , qL ) );
   // coarse grid bracket (guard) -----------------------------------------
   const int NG = 4000;
   double gbest = TUEDPINF , gbestq = qL;
@@ -2407,10 +2407,10 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     for( std::size_t k = 0 ; k < F.size() ; ++k ) {
      const double dd = std::abs( q - F[ k ].right );
      if( dd < best ) { best = dd; bi = int( k ) + 1; } }
-    return bi; };
+    return( bi ); };
    auto sig = [ & ]( double p ) -> Sig {
     auto g = Gtrue( p );
-    if( g.first >= TUEDPINF ) return Sig{ 0 , 0 , 0 , 0 , 0 , false };
+    if( g.first >= TUEDPINF ) return( Sig{ 0 , 0 , 0 , 0 , 0 , false } );
     const double q = g.second , tol = 1e-7;
     const double d = p - q;
     double B = std::min( ramp_up - d , ramp_down + d );
@@ -2434,10 +2434,10 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     auto segH = [ & ]( double H ) -> int {
      int m = 0;
      for( ; m < Kr ; ++m ) if( H <= segcum2[ m ] * p + 1e-9 ) break;
-     return m; };
+     return( m ); };
     const int side = ( std::abs( d - dpk ) < 1e-6 ) ? 2 : ( d > dpk ? 1 : 0 );
-    return Sig{ form , key , side , segH( std::min( A , B ) ) , segH( A ) ,
-                true };
+    return( Sig{ form , key , side , segH( std::min( A , B ) ) , segH( A ) ,
+                 true } );
     };
    auto same = []( const Sig & a , const Sig & b ) {
     return( a.fin == b.fin && a.form == b.form && a.key == b.key &&

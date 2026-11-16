@@ -1610,26 +1610,26 @@ void ThermalUnitExtDPSolver::run_DP( void )
   const int NQ = TUEDPS_ENV( "TUEDPS_CRNQ" )
                  ? std::atoi( TUEDPS_ENV( "TUEDPS_CRNQ" ) ) : 1500;
   std::vector< double > cf( N + 1 );
-  auto gp = [ & ]( int i ){ return glo + ( ghi - glo ) * i / N; };
+  auto gp = [ & ]( int i ){ return( glo + ( ghi - glo ) * i / N ); };
   for( int i = 0 ; i <= N ; ++i ) { double p = gp( i );
    cf[ i ] = ( p >= min_power[ 0 ] - 1e-9 && p <= max_power[ 0 ] + 1e-9 )
            ? ( quad_term[ 0 ] * p + linear_term[ 0 ] ) * p + const_term[ 0 ]
            : TUEDPINF; }
   auto cfEval = [ & ]( double q )->double {
-   if( q < glo - 1e-9 || q > ghi + 1e-9 ) return TUEDPINF;
+   if( q < glo - 1e-9 || q > ghi + 1e-9 ) return( TUEDPINF );
    double x = ( q - glo ) / ( ghi - glo ) * N; int i = ( int )x;
    if( i < 0 ) i = 0;
    if( i >= N ) i = N - 1;
    double a = cf[ i ] , b = cf[ i + 1 ];
-   if( a>=TUEDPINF || b>=TUEDPINF ) return std::min( a , b );
-   return a + ( b - a ) * ( x - i ); };
+   if( a>=TUEDPINF || b>=TUEDPINF ) return( std::min( a , b ) );
+   return( a + ( b - a ) * ( x - i ) ); };
   auto cfToPQ = [ & ]()->PQFun { PQFun G;
    for( int i = 0 ; i < N ; ++i ) {
     if( cf[ i ]>=TUEDPINF || cf[ i + 1 ]>=TUEDPINF ) continue;
     double pa = gp( i ) , pb = gp( i + 1 ) ,
            sl = ( cf[ i + 1 ] - cf[ i ] ) / ( pb - pa );
     G.push_back( { 0.0 , sl , cf[ i ] - sl * pa , pa , pb } ); }
-   return G; };
+   return( G ); };
   const double crstop = TUEDPS_ENV( "TUEDPS_CRSTOP" )
                         ? std::atof( TUEDPS_ENV( "TUEDPS_CRSTOP" ) ) : 1e30;
   for( Index t = 1 ; t < n ; ++t ) {
@@ -1777,8 +1777,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
   for( Index e = 0 ; e < E ; ++e ) {
    const Index k = ( t - 1 ) * E + e;
    if( c_off_ready[ k ] < TUEDPINF )
-    relax_ready( idle_label( t , e , 1 ) , c_off_ready[ k ] , f_ready_pred[ k ] ,
-                 f_ready_lab[ k ] );
+    relax_ready( idle_label( t , e , 1 ) , c_off_ready[ k ] ,
+		 f_ready_pred[ k ] , f_ready_lab[ k ] );
    }
 
   if( fixed_on( t ) ) {   // the unit cannot be off at t: kill all the OFF
@@ -2164,7 +2164,9 @@ void ThermalUnitExtDPSolver::build_solution( void )
    if( tau == 1 )
     return( std::make_pair( t , lk.off ) );    // first instant of this on-run
    if( t == 0 )
-    return( std::make_pair( Index( 0 ) , Index( 0 ) ) );         // hit initial on state (init > 0)
+    return( std::make_pair( Index( 0 ) , Index( 0 ) ) );         // hit initial
+								 // on state
+								 // (init > 0)
    if( lk.back == BAD )
     // defensive: by the pruning invariants this never happens (a surviving
     // state at t was built from a then-surviving state at t-1)

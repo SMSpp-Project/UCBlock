@@ -304,7 +304,8 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
                                    1.0 ) );
    vars.push_back( std::make_pair( &v_power_absorption[ i ][ node_id ] ,
                                    -1.0 ) );
-   vars.push_back( std::make_pair( &v_node_injection[ i ][ node_id ] , -1.0 ) );
+   vars.push_back( std::make_pair( &v_node_injection[ i ][ node_id ] ,
+				   -1.0 ) );
 
    power_balance_const[ node_id ][ i ].set_both(
     -v_ActiveDemand[ i ][ node_id ] );
@@ -367,7 +368,8 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
   power_shared_const.resize(
    boost::multi_array< FRowConstraint , 2 >::extent_gen()
-   [ number_intervals ][ 2 ] ); // 2 dims, i.e., injection (+) and absorption (-)
+   [ number_intervals ][ 2 ] ); // 2 dims, i.e., injection (+) and
+				// absorption (-)
 
   for( Index i = 0 ; i < number_intervals ; ++i ) {
 
@@ -527,7 +529,8 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast<
+		 SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -556,7 +559,8 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( power_balance_agg_const , tol , rel_viol )
   && RowConstraint::is_feasible( power_shared_const , tol , rel_viol )
   && RowConstraint::is_feasible( power_flow_limit_const , tol , rel_viol )
-  && RowConstraint::is_feasible( node_injection_bounds_const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( node_injection_bounds_const , tol ,
+				 rel_viol ) );
 
 }  // end( ECNetworkBlock::is_feasible )
 
@@ -718,7 +722,8 @@ void ECNetworkBlock::set_active_demand( MF_dbl_sp values ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
 {
- rng.second = std::min( rng.second , get_number_intervals() * get_number_nodes() );
+ rng.second = std::min( rng.second ,
+			get_number_intervals() * get_number_nodes() );
  if( rng.second <= rng.first )
   return;
 

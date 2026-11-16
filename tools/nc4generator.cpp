@@ -19,6 +19,7 @@
 #include <getopt.h>
 
 #include <SMSTypedefs.h>
+#include <SMSTerminate.h>
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- ThermalUnit ------------------------------*/
@@ -107,7 +108,8 @@ struct ThermalUnit
   }
 
   StartUpCost = fixedCost;
-  // double coolCost = coolAndFuelCost * ( 1 - exp( -MinDownTime / tau ) ) + fixedCost;
+  // double coolCost = coolAndFuelCost * ( 1 - exp( -MinDownTime / tau ) ) +
+  //                   fixedCost;
   // double hotCost = hotAndFuelCost * MinDownTime + fixedCost;
   // double cost = coolCost < hotCost ? coolCost : hotCost;
  }
@@ -312,7 +314,8 @@ struct DatFile
   out << "\n";
  }
 
- friend std::ostream & operator<<( std::ostream & out , const DatFile & file ) {
+ friend std::ostream & operator<<( std::ostream & out ,
+                                   const DatFile & file ) {
   file.print( out );
   return( out );
  }
@@ -440,7 +443,8 @@ struct ModFile
   out << "HydroCascadeSection\n";
  }
 
- friend std::ostream & operator<<( std::ostream & out , const ModFile & file ) {
+ friend std::ostream & operator<<( std::ostream & out ,
+                                   const ModFile & file ) {
   file.print( out );
   return( out );
  }
@@ -595,24 +599,6 @@ void process_args( int argc , char ** argv ) {
             << "Try " << exe << "' --help' for more information.\n";
   exit( 1 );
  }
-}
-
-/*--------------------------------------------------------------------------*/
-
-/// Custom terminate function to print the exception message
-
-void smspp_terminate( void ) {
- std::cerr << "Uncaught exception in executing SMS++:\n";
- try {
-  std::rethrow_exception( std::current_exception() );
- }
- catch( const std::exception & e ) {
-  std::cerr << "\tException type: " << typeid( e ).name() << "\n";
-  std::cerr << "\tException message: " << e.what() << "\n";
- } catch( ... ) {
-  std::cerr << "\tUnknown exception" << std::endl;
- }
- std::abort(); // or exit(1)
 }
 
 /*--------------------------------------------------------------------------*/

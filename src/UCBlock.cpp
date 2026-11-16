@@ -1002,7 +1002,8 @@ void UCBlock::build_carrier_networks( void )
     if( ! nb )
      throw( std::invalid_argument( "UCBlock::deserialize: " +
 				   cd.network_block_classname + " of Carrier_"
-				   + std::to_string( c ) + " not a NetworkBlock"
+				   + std::to_string( c ) +
+				   " not a NetworkBlock"
 				   ) );
     cd.v_network_blocks[ n ] = nb;
     nb->set_NetworkData( cd.f_NetworkData );
@@ -1248,9 +1249,13 @@ void UCBlock::set_node_injection_bounds( void )
    const auto p_mx = eta * ub->get_max_power( t , generator );
    auto fixed_consumption = c ? nullptr
                               : ub->get_fixed_consumption( generator );
-   min_node_injection[ node ] += mult * std::min( { p_mn , p_mx ,
-			   fixed_consumption ? - fixed_consumption[ t ] : 0 } );
-   max_node_injection[ node ] += mult * std::max( { 0.0 , p_mn , p_mx } );
+   const auto lo = std::min(
+     { p_mn , p_mx , fixed_consumption ? -fixed_consumption[ t ] : 0 } );
+   const auto hi = std::max( { 0.0 , p_mn , p_mx } );
+   // an infinite side stays infinite whatever mult is (also 0, where the
+   // product would be NaN), as the unit stays free [see BatteryUnitBlock]
+   min_node_injection[ node ] += std::isinf( lo ) ? lo : mult * lo;
+   max_node_injection[ node ] += std::isinf( hi ) ? hi : mult * hi;
    }
 
   for( Index node = 0 ; node < nodes ; ++node ) {
@@ -1300,8 +1305,9 @@ void UCBlock::set_node_injection_bounds( void )
      q_mn += std::min( 0.0 , tub->get_min_reactive_power_on( t , generator ) );
      q_mx += std::max( 0.0 , tub->get_max_reactive_power_on( t , generator ) );
      }
-    min_node_injection[ node ] += mult * q_mn;
-    max_node_injection[ node ] += mult * q_mx;
+    // an infinite side stays infinite whatever mult is, as the active ones
+    min_node_injection[ node ] += std::isinf( q_mn ) ? q_mn : mult * q_mn;
+    max_node_injection[ node ] += std::isinf( q_mx ) ? q_mx : mult * q_mx;
     }
 
    for( Index node = 0 ; node < nbi->get_number_nodes() ; ++node ) {
@@ -1950,7 +1956,7 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
    sol->v_carrier_duals.resize( get_number_carriers() );
    for( Index c = 1 ; c < get_number_carriers() ; ++c )
     sol->v_carrier_duals[ c ].resize(
-		mad2::extent_gen()[ get_time_horizon() ][ get_number_nodes( c ) ] );
+	   mad2::extent_gen()[ get_time_horizon() ][ get_number_nodes( c ) ] );
    }
   }
 
@@ -2138,7 +2144,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
   const auto nn = get_number_nodes( c );
   if( ! cd.v_network_blocks.empty() ) {
    boost::multi_array< double , 2 > demand( boost::extents[ nn ]
-					                    [ f_time_horizon ] );
+							  [ f_time_horizon ] );
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     const auto [ nw , i ] = cd.v_network_of_instant[ t ];
     const auto d = cd.v_network_blocks[ nw ]->get_active_demand( i );
@@ -2629,7 +2635,10 @@ double UCBlock::injection_bounds_linearization( Index unit ,
  double linearization = 0;
  const auto add = [ & ]( const BoxConstraint & row , double mn , double mx ) {
   const auto dual = row.get_dual();
-  linearization -= dual * factor * ( ( obj_sign * dual > 0 ) ? mn : mx );
+  const auto side = ( obj_sign * dual > 0 ) ? mn : mx;
+  // an infinite side, as that of a power with no limit, gives no term
+  if( ( dual != 0 ) && ( ! std::isinf( side ) ) )
+   linearization -= dual * factor * side;
   };
 
  for( Index c = 0 ; c < get_number_carriers() ; ++c ) {
@@ -2952,7 +2961,8 @@ void UCBlock::set_network_active_demand( MF_dbl_sp values ,
  // the NetworkBlock covering each instant, and the interval of the instant
  // in it (f_number_networks if none does)
  std::vector< std::pair< Index , Index > > where(
-				    f_time_horizon , { f_number_networks , 0 } );
+				    f_time_horizon ,
+				    { f_number_networks , 0 } );
  for( Index n = 0 , t = 0 ; n < f_number_networks ; ++n ) {
   auto nb = v_network_blocks[ n ];
   if( ! nb )
@@ -3722,9 +3732,10 @@ static NetworkBlockSolution * network_solution( const netCDF::NcGroup & g ,
 // read in sols the NetworkBlockSolution in the group "NetworkBlock" of a
 // group, stacked or compressed, where says where it is in the exceptions
 
-static void deserialize_networks( const netCDF::NcGroup & nb ,
-				  std::vector< NetworkBlockSolution * > & sols ,
-				  const std::string & where )
+static void deserialize_networks(
+		   const netCDF::NcGroup & nb ,
+		   std::vector< NetworkBlockSolution * > & sols ,
+		   const std::string & where )
 {
  if( ! stacked_size( nb ) ) {  // compressed format
   NetworkBlockSolution::deserialize( nb , sols );

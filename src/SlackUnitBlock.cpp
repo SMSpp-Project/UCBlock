@@ -25,7 +25,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano
+ * Lobato,
  *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
@@ -321,7 +322,8 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
    }
    else{
       // assuming some possible symmetry
-      ReactivePower_Bound_Const[ t ].set_lhs( -1.0*get_max_reactive_power( t ) );
+      ReactivePower_Bound_Const[ t ].set_lhs(
+	-1.0*get_max_reactive_power( t ) );
    }
    ReactivePower_Bound_Const[ t ].set_variable( & v_reactive_power[ t ] );
    }
@@ -482,7 +484,8 @@ bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast<
+		 SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -505,9 +508,12 @@ bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // Constraints: notice that the ZOConstraint are not checked, since the
   // corresponding check is made on the ColVariable
   && RowConstraint::is_feasible( ActivePower_Bound_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( Primary_Spinning_Reserve_Bound_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( Secondary_Spinning_Reserve_Bound_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( Primary_Spinning_Reserve_Bound_Const , tol ,
+				 rel_viol )
+  && RowConstraint::is_feasible( Secondary_Spinning_Reserve_Bound_Const , tol ,
+				 rel_viol )
+  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol ,
+				 rel_viol ) );
 
 } // end( SlackUnitBlock::is_feasible )
 

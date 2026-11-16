@@ -118,9 +118,10 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
    this->set_time_horizon( th );
   else if( f_time_horizon != th )
    throw( std::logic_error(
-    classname() + "::deserialize: TimeHorizon is not present in the "
-                  "netCDF. The (nonzero) time horizon of UnitBlock is different "
-                  "from that of its father, but they should be equal" ) );
+    classname() +
+    "::deserialize: TimeHorizon is not present in the "
+    "netCDF. The (nonzero) time horizon of UnitBlock is different "
+    "from that of its father, but they should be equal" ) );
   }
  }
 
@@ -208,9 +209,10 @@ void UnitBlock::deserialize_outputs( const netCDF::NcGroup & group )
 				"mandatory with NumberOutputs" ) );
  const auto oed = oe.getDimCount();
  if( ( oed < 2 ) || ( oed > 3 ) || ( oe.getDim( oed - 1 ).getSize() != K ) )
-  throw( std::invalid_argument( classname() + who + "OutputEfficiency must "
-				"be indexed over TimeHorizon , [ generators , ] "
-				"NumberOutputs" ) );
+  throw( std::invalid_argument(
+    classname() + who + "OutputEfficiency must "
+    "be indexed over TimeHorizon , [ generators , ] "
+    "NumberOutputs" ) );
  const Index Tn = oe.getDim( 0 ).getSize();
  const Index Gn = ( oed == 3 ) ? oe.getDim( 1 ).getSize() : 1;
  if( ( ( Tn != 1 ) && ( Tn != f_time_horizon ) ) || ( ! Gn ) )
