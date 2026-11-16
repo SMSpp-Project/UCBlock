@@ -1540,14 +1540,34 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
 
  std::list< FRowConstraint > newcuts;
 
+ // the inequalities that are in v_SOCP_cuts, forgetting the cuts that are
+ // no longer there
+ std::vector< bool > present( 14 * v_qc_lines.size() , false );
+ {
+  std::unordered_map< const FRowConstraint * , Index > there;
+  for( const auto & cut : v_SOCP_cuts )
+   if( auto it = m_SOCP_cut_key.find( & cut ) ;
+       it != m_SOCP_cut_key.end() ) {
+    present[ it->second ] = true;
+    there.insert( * it );
+    }
+  m_SOCP_cut_key.swap( there );
+  }
+ Index key = 0;  // the inequality being separated
+ std::vector< std::pair< const FRowConstraint * , Index > > added;
+
  /* Append to newcuts the three-term inequality lhs <= c0 v0 + c1 v1 + c2 v2
   * <= rhs, but only if it is violated by more than tol at the current point.
   * The coefficients are exactly those of the static formulation, so a
-  * separated cut is identical to the inequality it replaces. */
+  * separated cut is identical to the inequality it replaces; an inequality
+  * already in v_SOCP_cuts is not added again. */
  auto separate = [ & ]( ColVariable * v0 , double c0 ,
                         ColVariable * v1 , double c1 ,
                         ColVariable * v2 , double c2 ,
                         double lhs , double rhs ) {
+  const Index k = key++;
+  if( present[ k ] )
+   return;
   const double val = c0 * v0->get_value() + c1 * v1->get_value()
                    + c2 * v2->get_value();
   if( ( val < lhs - tol ) || ( val > rhs + tol ) ) {
@@ -1559,6 +1579,7 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
    one.back().set_function( lfunc );
    one.back().set_lhs( lhs );
    one.back().set_rhs( rhs );
+   added.emplace_back( & one.back() , k );
    newcuts.splice( newcuts.end() , one );
    }
   };
@@ -1646,8 +1667,10 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
   ++i_line;
   }
 
+ // the elements of a std::list keep their address when spliced
  if( ! newcuts.empty() )
   add_dynamic_constraints( v_SOCP_cuts , newcuts , eNoBlck );
+ m_SOCP_cut_key.insert( added.begin() , added.end() );
 
  }  // end( ACNetworkBlock::generate_dynamic_constraints )
 

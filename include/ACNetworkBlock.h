@@ -38,6 +38,8 @@
 
 #include "DCNetworkBlock.h"
 
+#include <unordered_map>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -938,8 +940,11 @@ class ACNetworkData : public DCNetworkData
   * strengthen the SOCP relaxation (the z / c / beta / s families), adding to
   * v_SOCP_cuts only those violated by more than the tolerance read from \p
   * dycc (a SimpleConfiguration< double >, or the .first of a
-  * SimpleConfiguration< pair< double , int > >; default 1e-6). Does nothing
-  * unless the strengthened relaxation is active (b_strongSOCP). */
+  * SimpleConfiguration< pair< double , int > >; default 1e-6) and not in
+  * v_SOCP_cuts already, since an inequality that is there may still be
+  * violated by more than the tolerance at the solution of a Solver that
+  * imposes it up to its own one. Does nothing unless the strengthened
+  * relaxation is active (b_strongSOCP). */
 
  void generate_dynamic_constraints( Configuration * dycc = nullptr ) override;
 
@@ -1346,6 +1351,14 @@ class ACNetworkData : public DCNetworkData
   * v_alpha, v_beta, v_voltage, v_theta, v_sum_product_voltages and
   * v_diff_product_voltages. */
  std::list< FRowConstraint > v_SOCP_cuts;
+
+ /// the inequality of each cut in v_SOCP_cuts, by its address
+ /** The inequality of a cut is 14 times the position of its line in
+  * v_qc_lines plus its position among the 14 inequalities of the line, in
+  * the order of generate_dynamic_constraints(); a cut no longer in
+  * v_SOCP_cuts (e.g., removed by a Solver) is dropped at the next
+  * separation, which can then add it again. */
+ std::unordered_map< const FRowConstraint * , Index > m_SOCP_cut_key;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

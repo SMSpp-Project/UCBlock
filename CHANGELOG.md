@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `ACNetworkBlock::generate_dynamic_constraints()` does not add again a
+  McCormick cut that is already among the dynamic ones, which it did when
+  the Solver imposed it up to a tolerance looser than that of the
+  separation; the tester separates twice at the same point
+
 ## [0.12.0] - 2026-11-16
 
 ### Added

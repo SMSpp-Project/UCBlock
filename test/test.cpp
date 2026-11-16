@@ -11903,9 +11903,16 @@ static void test_ac_angle_bounds_matpower( void )
           " is not that of line " + std::to_string( qc[ i ] ) );
 
  // the dynamic cuts of the strengthened relaxation, at the point 0, use
- // only the Variable of the lines covered
+ // only the Variable of the lines covered, and separating them again at
+ // the same point adds none of those already there
  try {
   ab->generate_dynamic_constraints();
+  auto cuts = ab->get_dynamic_constraint< FRowConstraint >( "AC_SOCP_cuts" );
+  const auto n = cuts ? cuts->size() : 0;
+  ab->generate_dynamic_constraints();
+  check( cuts && ( cuts->size() == n ) , what + ": separating again at the "
+         "same point adds " + std::to_string( cuts ? cuts->size() - n : 0 ) +
+         " cuts" );
   }
  catch( std::exception & e ) {
   check( false , what + ": separating the cuts throws " + e.what() );
