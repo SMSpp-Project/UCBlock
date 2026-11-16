@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `nc4generator` uses `smspp_terminate()` of the core, with which it aborts
+  with a message when `std::terminate()` is called with no exception, e.g.,
+  by the destructor of a `std::thread` that can still be joined, where
+  rethrowing the null exception crashed
+
 - the installed module `smspp.ucblock` could not be imported, since its
   package gave the interface of the module the target of the library by its
   name in the build tree, which an installed package does not have
