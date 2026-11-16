@@ -81,11 +81,6 @@
 
 #include <netcdf>
 
-#if defined( __unix__ ) || defined( __APPLE__ )
-#include <sys/wait.h>
-#include <unistd.h>
-#endif
-
 #include "lp_compare.h"
 
 #include "BlockSolverConfig.h"
@@ -1013,96 +1008,24 @@ Outcome run_case( const UnitData & d , const Form & wf , const Change & c ,
  }
 
 /*--------------------------------------------------------------------------*/
-/// the case run in a child process where there is one, so that a crash of
-/// the code under test is reported as such and does not stop the sweep
-
-std::string pack( const Outcome & o )
-{
- const char sep = '\x1f';
- return( o.kind + sep + ( o.fail ? "1" : "0" ) + sep + o.groups + sep +
-         o.detail );
- }
-
-Outcome unpack( const std::string & s )
-{
- Outcome o;
- std::vector< std::string > f( 1 );
- for( char c : s )
-  if( ( c == '\x1f' ) && ( f.size() < 4 ) )
-   f.emplace_back();
-  else
-   f.back() += c;
- f.resize( 4 );
- o.kind = f[ 0 ];
- o.fail = ( f[ 1 ] == "1" );
- o.groups = f[ 2 ];
- o.detail = f[ 3 ];
- return( o );
- }
+/// the case run with its exceptions reported as an ERROR outcome, so that
+/// they do not stop the sweep; a crash of the code under test stops the
+/// whole test, which reports it
 
 Outcome run_case_safe( const UnitData & d , const Form & wf ,
                        const Change & c ,
                        const std::string & tag )
 {
- auto guarded = [ & ]() {
-  try {
-   return( run_case( d , wf , c , tag ) );
-   }
-  catch( std::exception & e ) {
-   Outcome o;
-   o.kind = "ERROR";
-   o.fail = true;
-   o.detail = e.what();
-   return( o );
-   }
-  };
-
-#if defined( __unix__ ) || defined( __APPLE__ )
- int fd[ 2 ];
- std::cout.flush();
- std::cerr.flush();
- if( pipe( fd ) == 0 ) {
-  const pid_t pid = fork();
-  if( pid == 0 ) {               // the child
-   close( fd[ 0 ] );
-   const auto msg = pack( guarded() );
-   std::size_t done = 0;
-   while( done < msg.size() ) {
-    const auto w = write( fd[ 1 ] , msg.data() + done , msg.size() - done );
-    if( w <= 0 )
-     break;
-    done += std::size_t( w );
-    }
-   close( fd[ 1 ] );
-   std::cout.flush();
-   std::cerr.flush();
-   _exit( 0 );
-   }
-  if( pid > 0 ) {                // the parent
-   close( fd[ 1 ] );
-   std::string msg;
-   char buf[ 4096 ];
-   ssize_t r;
-   while( ( r = read( fd[ 0 ] , buf , sizeof( buf ) ) ) > 0 )
-    msg.append( buf , std::size_t( r ) );
-   close( fd[ 0 ] );
-   int status = 0;
-   waitpid( pid , & status , 0 );
-   if( WIFSIGNALED( status ) || msg.empty() ) {
-    Outcome o;
-    o.kind = "CRASH";
-    o.fail = true;
-    if( WIFSIGNALED( status ) )
-     o.detail = " signal " + std::to_string( WTERMSIG( status ) );
-    return( o );
-    }
-   return( unpack( msg ) );
-   }
-  close( fd[ 0 ] );
-  close( fd[ 1 ] );
+ try {
+  return( run_case( d , wf , c , tag ) );
   }
-#endif
- return( guarded() );
+ catch( std::exception & e ) {
+  Outcome o;
+  o.kind = "ERROR";
+  o.fail = true;
+  o.detail = e.what();
+  return( o );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
