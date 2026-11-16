@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-16
+
 ### Added
 
 - the unit test checks the Solution of a `DCNetworkBlock` with a priced
@@ -2226,7 +2228,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.11.0...develop
+[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.12.0...develop
+[0.12.0]: https://gitlab.com/smspp/ucblock/-/compare/0.11.0...0.12.0
 [0.11.0]: https://gitlab.com/smspp/ucblock/-/compare/0.10.0...0.11.0
 [0.10.0]: https://gitlab.com/smspp/ucblock/-/compare/0.9.0...0.10.0
 [0.9.0]: https://gitlab.com/smspp/ucblock/-/compare/0.8.0...0.9.0
