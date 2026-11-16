@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the installed module `smspp.ucblock` could not be imported, since its
+  package gave the interface of the module the target of the library by its
+  name in the build tree, which an installed package does not have
+
 - an infinite bound, as that of a storage with no power limit, gives no
   term in the derivatives with respect to the size of a unit or of a line,
   whatever the dual of its row: `BatteryUnitBlock::get_kappa_linearization()`,
