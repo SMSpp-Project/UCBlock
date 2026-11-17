@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<<<<<<< Updated upstream
+### Added
+
+- the instances of the EDF case Man0euVRE in `data/nc4/pypsa-data/man0euvre`
+  (data 2026-11-16), as the workflow of SPSUnipi/RESILIENT-instances hands
+  them to SMS++: 16 regions, 2 days and 3 scenarios, written for the Benders
+  decomposition of the TwoStageStochasticBlock and with the InvestmentBlock
+  outside it
+
 ### Changed
 
 - the library is kept in whoever links it by a source that calls its
@@ -21,15 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test, with its exceptions reported as an `ERROR` outcome, on every
   system, instead of in a child process made by `fork()` where there is
   one; a crash of a case stops the test, which ctest reports
-=======
-### Added
-
-- the instances of the EDF case Man0euVRE in `data/nc4/pypsa-data/man0euvre`
-  (data 2026-11-16), as the workflow of SPSUnipi/RESILIENT-instances hands
-  them to SMS++: 16 regions, 2 days and 3 scenarios, written for the Benders
-  decomposition of the TwoStageStochasticBlock and with the InvestmentBlock
-  outside it
->>>>>>> Stashed changes
 
 ### Fixed
 
