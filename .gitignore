@@ -6,6 +6,8 @@
 # netCDF datasets (downloaded/extracted on demand)
 data/nc4
 data/nc4*.tgz
+data/man0euvre
+data/man0euvre*.tgz
 data/.extracted*
 netCDF
 

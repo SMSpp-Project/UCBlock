@@ -225,22 +225,32 @@ endif ()
 # archive and the marker of its extraction carry it in their name, so that a
 # tree holding the data of an older version (a cache of the CI, or a clone
 # that has been extracted before) downloads and extracts again instead of
-# taking them for the current ones.
-set(DATA_VERSION 2026-11-16)
+# taking them for the current ones. An archive whose version is not
+# DATA_VERSION gives it in DATA_VERSION_<fmt>.
+#
+# The archive man0euvre holds the two largest cases of Man0euVRE, which only
+# the tests labelled berlin read [see batch-man0euvre in the tests], so that
+# the others do not download them.
+set(DATA_VERSION 2026-11-17)
 set(DATA_PROJECT 14857791)
 set(DATA_PREFIX uc)
-set(DATA_FORMATS nc4)
+set(DATA_FORMATS nc4 man0euvre)
+set(DATA_VERSION_man0euvre 2026-11-17)
 
 foreach (fmt ${DATA_FORMATS})
+    set(version ${DATA_VERSION})
+    if (DEFINED DATA_VERSION_${fmt})
+        set(version ${DATA_VERSION_${fmt}})
+    endif ()
     set(url "https://gitlab.com/api/v4/projects/${DATA_PROJECT}/packages/\
-generic/${fmt}/${DATA_VERSION}/${fmt}.tgz")
-    set(archive ${CMAKE_CURRENT_SOURCE_DIR}/data/${fmt}-${DATA_VERSION}.tgz)
+generic/${fmt}/${version}/${fmt}.tgz")
+    set(archive ${CMAKE_CURRENT_SOURCE_DIR}/data/${fmt}-${version}.tgz)
     set(script
         ${CMAKE_CURRENT_BINARY_DIR}/download_${DATA_PREFIX}_${fmt}.cmake)
     # the marker of the extraction, on which what is made from the instances
     # depends too
     set(DATA_MARKER_${fmt}
-        ${CMAKE_CURRENT_SOURCE_DIR}/data/.extracted-${fmt}-${DATA_VERSION})
+        ${CMAKE_CURRENT_SOURCE_DIR}/data/.extracted-${fmt}-${version})
 
     file(WRITE ${script} "
 file(DOWNLOAD \"${url}\" \"${archive}\" SHOW_PROGRESS STATUS _status)

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+cd ../..
+# the archive of the largest cases of Man0euVRE, which has a version of its
+# own [see DATA_VERSION_man0euvre in CMakeLists.txt]
+bash upload-to-package-registry UCBlock/data/man0euvre.tgz \
+     "$(sed -n 's/^set(DATA_VERSION_man0euvre \(.*\))$/\1/p' \
+            UCBlock/CMakeLists.txt)"

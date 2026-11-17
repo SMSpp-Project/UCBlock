@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decomposition of the TwoStageStochasticBlock and with the InvestmentBlock
   outside it
 
+- the cases d12_s21, d12_s52 and d12_s105 of Man0euVRE (16 regions, 12 days
+  of 24 hours, 21, 52 and 105 scenarios) as the same workflow writes them,
+  d12_s21 among the others (data 2026-11-17) and the two largest ones in the
+  archive `man0euvre` (`data/man0euvre`), which has a version of its own
+  [`DATA_VERSION_<fmt>`] and is downloaded only by the tests that read it
+
 ### Changed
 
 - the library is kept in whoever links it by a source that calls its
