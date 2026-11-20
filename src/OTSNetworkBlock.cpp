@@ -240,7 +240,7 @@ void OTSNetworkBlock::generate_objective( Configuration * objc )
  // whatever the formulation, constant term, sense, registration)
  DCNetworkBlock::generate_objective( objc );
 
- auto * lf = dynamic_cast< LinearFunction * >( objective.get_function() );
+ auto * lf = memo_cast< LinearFunction * >( objective.get_function() );
  if( ! lf )
   return;
 

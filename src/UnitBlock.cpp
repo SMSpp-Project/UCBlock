@@ -83,7 +83,7 @@ void UnitBlock::issue_unit_mod( sp_Mod mod , ModParam issuePMod )
                            Observer::par2chnl( issuePMod ) );
  else
   if( auto fb = get_f_Block() ) {
-   const auto umod = dynamic_cast< const UnitBlockMod * >( mod.get() );
+   const auto umod = memo_cast< const UnitBlockMod * >( mod.get() );
    if( umod && umod->changes_power_range() )
     fb->add_Modification( std::move( mod ) ,
                           Observer::par2chnl( issuePMod ) );
@@ -313,7 +313,7 @@ void UnitBlock::set_weight( double k , c_ModParam issueMod )
    ucb->weight_changed( unit );
    break;
    }
-  if( ! dynamic_cast< const Function * >( b ) )
+  if( ! memo_cast< const Function * >( b ) )
    unit = b;
   }
  }

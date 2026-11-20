@@ -1112,11 +1112,11 @@ void ThermalUnitDPSolver::process_modifications( void )
 bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
 {
  // NBModification
- if( dynamic_cast< NBModification * >( mod ) )
+ if( memo_cast< NBModification * >( mod ) )
   return( true );
 
  // GroupModification
- if( const auto gm = dynamic_cast< GroupModification * >( mod ) ) {
+ if( const auto gm = memo_cast< GroupModification * >( mod ) ) {
   bool reload = false;
   for( const auto & submod : gm->sub_Modifications() )
    if( guts_of_process_modifications( submod.get() ) )
@@ -1126,7 +1126,7 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
   }
 
  // ThermalUnitBlockMod
- if( const auto tubm = dynamic_cast< ThermalUnitBlockMod * >( mod ) ) {
+ if( const auto tubm = memo_cast< ThermalUnitBlockMod * >( mod ) ) {
    auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
    switch( tubm->type() ) {

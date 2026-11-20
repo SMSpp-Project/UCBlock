@@ -197,7 +197,7 @@ static bool weighted_feasible( const UCBlock & ucb , FRowConstraint & row ,
 {
  if( row.is_relaxed() )
   return( true );
- const auto lf = dynamic_cast< const LinearFunction * >( row.get_function() );
+ const auto lf = memo_cast< const LinearFunction * >( row.get_function() );
  if( ! lf )
   return( RowConstraint::is_feasible( row , tol , rel ) );
 
@@ -2204,20 +2204,20 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 
  std::function< void( const Modification * ) > collect =
   [ & ]( const Modification * m ) {
-   if( const auto grp = dynamic_cast< const GroupModification * >( m ) ) {
+   if( const auto grp = memo_cast< const GroupModification * >( m ) ) {
     for( const auto & submod : grp->sub_Modifications() )
      collect( submod.get() );
     return;
     }
 
-   if( const auto tmod = dynamic_cast< const UnitBlockMod * >( m ) ) {
+   if( const auto tmod = memo_cast< const UnitBlockMod * >( m ) ) {
     /* A change of the inertia power of a HydroUnitBlock changes the
      * coefficients of its active power in the inertia rows; the
      * HydroUnitBlock may be a unit of this UCBlock or one of the
      * HydroUnitBlock of a HydroSystemUnitBlock unit. */
     const bool inertia =
      ( tmod->type() == HydroUnitBlockMod::eSetInerP ) &&
-     dynamic_cast< const HydroUnitBlockMod * >( m );
+     memo_cast< const HydroUnitBlockMod * >( m );
     // the bounds of the node injections depend on the power range of the
     // units, whatever their class [see UnitBlockMod::changes_power_range()]
     if( tmod->changes_power_range() )
@@ -2721,7 +2721,7 @@ bool UCBlock::has_design( void ) const
 static const Block * solved_root( const Block * b )
 {
  for( auto f = b->get_f_Block() ;
-      f && ( ! dynamic_cast< const Function * >( f ) ) ;
+      f && ( ! memo_cast< const Function * >( f ) ) ;
       f = f->get_f_Block() )
   b = f;
  return( b );
@@ -2757,7 +2757,7 @@ double UCBlock::get_replicate_linearization( Index unit ) const
   * [see solved_root()]. */
 
  const auto objective =
-  dynamic_cast< FRealObjective * >( block->get_objective() );
+  memo_cast< FRealObjective * >( block->get_objective() );
  if( ! objective )
   throw( std::logic_error( "UCBlock::get_replicate_linearization: unit " +
                            std::to_string( unit ) + " has no FRealObjective, "

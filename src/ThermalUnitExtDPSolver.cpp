@@ -556,10 +556,10 @@ void ThermalUnitExtDPSolver::process_modifications( void )
 
 bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
 {
- if( dynamic_cast< NBModification * >( mod ) )
+ if( memo_cast< NBModification * >( mod ) )
   return( true );
 
- if( const auto gm = dynamic_cast< GroupModification * >( mod ) ) {
+ if( const auto gm = memo_cast< GroupModification * >( mod ) ) {
   bool reload = false;
   for( const auto & submod : gm->sub_Modifications() )
    if( guts_of_process_modifications( submod.get() ) )
@@ -567,7 +567,7 @@ bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
   return( reload );
   }
 
- if( const auto tubm = dynamic_cast< ThermalUnitBlockMod * >( mod ) ) {
+ if( const auto tubm = memo_cast< ThermalUnitBlockMod * >( mod ) ) {
   auto b = static_cast< ThermalUnitBlock * >( f_Block );
   switch( tubm->type() ) {
    case( ThermalUnitBlockMod::eSetMaxP ):

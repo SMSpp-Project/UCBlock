@@ -3863,7 +3863,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
   if( PC_pbar_size != PC_cuts.size() ) {
    PC_pbar.clear();
    for( const auto & c : PC_cuts )
-    if( auto lf = dynamic_cast< const LinearFunction * >( c.get_function() ) )
+    if( auto lf = memo_cast< const LinearFunction * >( c.get_function() ) )
      if( lf->get_num_active_var() >= 2 )
       PC_pbar[ lf->get_v_var()[ 1 ].first ].insert(
                                          lf->get_v_var()[ 0 ].second / 2 );
@@ -6748,7 +6748,7 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
 
- auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
+ auto function = memo_cast< DQuadFunction * >( objective.get_function() );
 
  if( ! function )
   return;
@@ -6773,7 +6773,7 @@ void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
 
- auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
+ auto function = memo_cast< DQuadFunction * >( objective.get_function() );
 
  if( ! function )
   return;
@@ -6805,7 +6805,7 @@ void ThermalUnitBlock::update_objective_commitment(
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
 
- auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
+ auto function = memo_cast< DQuadFunction * >( objective.get_function() );
 
  if( ! function )
   return;
@@ -6827,7 +6827,7 @@ double ThermalUnitBlock::get_design_cost( void ) const
   return( 0 );  // no design variable: no design cost
 
  if( objective_generated() )
-  if( auto function = dynamic_cast< DQuadFunction * >(
+  if( auto function = memo_cast< DQuadFunction * >(
                                                  objective.get_function() ) ) {
    auto var_index = function->is_active( & design );
    if( var_index < function->get_num_active_var() )
@@ -6855,7 +6855,7 @@ void ThermalUnitBlock::update_objective_investment( ModParam issuePMod ,
  if( not_dry_run( issueAMod ) ) {
   // change the abstract representation, i.e., the coefficient of the design
   // variable in the Objective
-  auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
+  auto function = memo_cast< DQuadFunction * >( objective.get_function() );
   if( ! function )
    return;
   auto var_index = function->is_active( & design );
@@ -6913,7 +6913,7 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
   * This assumption drastically simplifies some logic here. */
 
  // VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< VariableMod * >( mod ) ) {
+ if( const auto tmod = memo_cast< VariableMod * >( mod ) ) {
   // the only supported change is fixing/unfixing a Variable: the abstract
   // representation is already up to date (the fixed status lives in the
   // Variable itself, and it has no physical counterpart in the
@@ -6935,11 +6935,11 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
  // BlockWeightMod - the copies of the unit [see UnitBlock::replicate()],
  // which change nothing of the unit itself, the Solver applying them
- if( dynamic_cast< BlockWeightMod * >( mod ) )
+ if( memo_cast< BlockWeightMod * >( mod ) )
   return;
 
  // BlockMod - Generic modification - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< BlockMod * >( mod ) ) {
+ if( const auto tmod = memo_cast< BlockMod * >( mod ) ) {
   // changing the Objective is not supported, but the Modification is issued
   // when it is first set, in which case it must be ignored
   // THE Modification SHOULD NOT BE ISSUED WHEN IT IS CREATED!
@@ -6953,7 +6953,7 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
   }
 
  // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< FunctionMod * >( mod ) ) {
+ if( const auto tmod = memo_cast< FunctionMod * >( mod ) ) {
   auto f = tmod->function();
   if( f == static_cast< FRealObjective * >( get_objective()
 					    )->get_function() ) {
@@ -7229,10 +7229,10 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 
  const Range * rng = nullptr;
  bool with_quad = false;
- if( const auto tmod = dynamic_cast< C05FunctionModLinRngd * >( mod ) )
+ if( const auto tmod = memo_cast< C05FunctionModLinRngd * >( mod ) )
   rng = & tmod->range();
  else
-  if( const auto tmod = dynamic_cast< DQuadFunctionModRngd * >( mod ) ) {
+  if( const auto tmod = memo_cast< DQuadFunctionModRngd * >( mod ) ) {
    rng = & tmod->range();
    with_quad = true;
    }
@@ -7512,10 +7512,10 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 
  const Subset * sbs = nullptr;
  with_quad = false;
- if( const auto tmod = dynamic_cast< C05FunctionModLinSbst * >( mod ) )
+ if( const auto tmod = memo_cast< C05FunctionModLinSbst * >( mod ) )
   sbs = & tmod->subset();
  else
-  if( const auto tmod = dynamic_cast< DQuadFunctionModSbst * >( mod ) ) {
+  if( const auto tmod = memo_cast< DQuadFunctionModSbst * >( mod ) ) {
    sbs = & tmod->subset();
    with_quad = true;
    }
