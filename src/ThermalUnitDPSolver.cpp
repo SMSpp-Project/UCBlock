@@ -172,7 +172,7 @@ int ThermalUnitDPSolver::compute( bool changedvars )
 #endif
 
  assert( stage == sol_OK );
- return( f_end.lab == TUDPINF ? kInfeasible : kOK );
+ return( f_end.lab == TUDPINF ? int( kInfeasible ) : int( kOK ) );
  }
 
 /*--------------------------------------------------------------------------*/

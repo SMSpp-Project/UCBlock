@@ -3687,11 +3687,8 @@ class ThermalUnitBlock : public UnitBlock
   // k identical copies of this unit, the k given as the one scalar a unit
   // has. There is no "resize": this class has no kappa
 
-  // the braces stop g++ from deducing the types of the arguments from a
-  // member with one signature, which it fails to do [see register_method()]
-
   register_method< ThermalUnitBlock , double >(
-   "ThermalUnitBlock::replicate" , { & ThermalUnitBlock::replicate } );
+   "ThermalUnitBlock::replicate" , & ThermalUnitBlock::replicate );
  }
 
 /*--------------------------------------------------------------------------*/

@@ -1969,11 +1969,8 @@ class ConversionUnitBlock : public UnitBlock
   // this unit, committed together, the k given as the one scalar a unit has
   // [see UCBlock::replicate()]
 
-  // the braces stop g++ from deducing the types of the arguments from a
-  // member with one signature, which it fails to do [see register_method()]
-
   register_method< ConversionUnitBlock , double >(
-   "ConversionUnitBlock::replicate" , { & ConversionUnitBlock::replicate } );
+   "ConversionUnitBlock::replicate" , & ConversionUnitBlock::replicate );
 
   register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_initial_delayed_power" ,

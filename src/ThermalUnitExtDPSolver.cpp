@@ -183,7 +183,7 @@ int ThermalUnitExtDPSolver::compute( bool changedvars )
 #endif
 
  assert( stage == sol_OK );
- return( f_best_cost >= TUEDPINF ? kInfeasible : kOK );
+ return( f_best_cost >= TUEDPINF ? int( kInfeasible ) : int( kOK ) );
  }
 
 /*--------------------------------------------------------------------------*/

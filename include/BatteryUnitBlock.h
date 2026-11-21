@@ -2382,11 +2382,8 @@ class BatteryUnitBlock : public UnitBlock
   // a consumer can reach them without holding a BatteryUnitBlock *, and that
   // a class not answering for one simply does not register its name.
 
-  // the braces stop g++ from deducing the types of the arguments from a
-  // member with one signature, which it fails to do [see register_method()]
-
   register_method< BatteryUnitBlock , double >(
-   "BatteryUnitBlock::replicate" , { & BatteryUnitBlock::replicate } );
+   "BatteryUnitBlock::replicate" , & BatteryUnitBlock::replicate );
 
   register_method< BatteryUnitBlock , double >(
    "BatteryUnitBlock::resize" , & BatteryUnitBlock::resize );

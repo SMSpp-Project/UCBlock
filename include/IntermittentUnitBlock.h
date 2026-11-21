@@ -1186,15 +1186,12 @@ class IntermittentUnitBlock : public UnitBlock
   //   kappa in the bounds of the node injections only [see
   //   UCBlock::set_node_injection_bounds()].
 
-  // the braces stop g++ from deducing the types of the arguments from a
-  // member with one signature, which it fails to do [see register_method()]
-
   register_method< IntermittentUnitBlock , double >(
    "IntermittentUnitBlock::replicate" ,
-   { & IntermittentUnitBlock::replicate } );
+   & IntermittentUnitBlock::replicate );
 
   register_method< IntermittentUnitBlock , double >(
-   "IntermittentUnitBlock::resize" , { & IntermittentUnitBlock::resize } );
+   "IntermittentUnitBlock::resize" , & IntermittentUnitBlock::resize );
 
   // ... and the getter reading the sensitivity back, registered under a name
   // that says which way of sizing it answers for. It is the same virtual that

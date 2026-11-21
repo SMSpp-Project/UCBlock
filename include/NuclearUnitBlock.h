@@ -1685,11 +1685,8 @@ private:
   // ThermalUnitBlock::static_initialization()], under a name of its own,
   // since a consumer looks the name up by the exact class of the Block
 
-  // the braces stop g++ from deducing the types of the arguments from a
-  // member with one signature, which it fails to do [see register_method()]
-
   register_method< NuclearUnitBlock , double >(
-   "NuclearUnitBlock::replicate" , { & NuclearUnitBlock::replicate } );
+   "NuclearUnitBlock::replicate" , & NuclearUnitBlock::replicate );
  }
 
 /*--------------------------------------------------------------------------*/

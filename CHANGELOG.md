@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   McCormick cut that is already among the dynamic ones, which it did when
   the Solver imposed it up to a tolerance looser than that of the
   separation; the tester separates twice at the same point
+- the unit Blocks register `replicate()` and `resize()` with the pointer to
+  the member, with no braces around it, and `ThermalUnitDPSolver` and
+  `ThermalUnitExtDPSolver` give their status with no conditional between two
+  enumerations
 
 ## [0.12.0] - 2026-11-16
 
