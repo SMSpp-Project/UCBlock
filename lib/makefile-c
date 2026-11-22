@@ -43,4 +43,8 @@ include $(UCBckDIR)/lib/makefile
 UCBckLIB = $(SMS++LIB)
 UCBckINC := $(UCBckINC) $(SMS++INC)
 
+# the objects as the shared libraries of the module and of those whose
+# objects it takes [see SMS++/lib/makefile-shared]
+$(eval $(call SMSppSOlib,UCBck))
+
 ########################### End of makefile-c ################################

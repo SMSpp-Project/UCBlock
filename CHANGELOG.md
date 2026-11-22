@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the makefiles give the shared library of the module by default on Linux
+  and on macOS, as CMake does, and its objects with `SMSppSTATIC` [see
+  `lib/makefile-shared` of SMS++]
+
 - `ThermalUnitBlock`, `ThermalUnitDPSolver`, `ThermalUnitExtDPSolver`,
   `NuclearUnitExtDPSolver`, `UCBlock`, `UnitBlock` and `OTSNetworkBlock`
   find the type of a `Modification` by `memo_cast()` [see `SMSTypedefs.h`
