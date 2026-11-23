@@ -30,27 +30,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `DCNetworkBlock` generates the auxiliary variable `V_l >= | F_l |` of the
   network cost, and its two rows `power_flow_relax_abs`, only for the lines
-  whose flow can be negative (`MinPowerFlow` < 0) that have a nonzero
-  `NetworkCost`: a line with no cost has no term to put `V_l` in, and its
-  flow takes `V_l`'s place in the objective with a zero coefficient, as for
-  a line whose flow cannot be negative. `has_auxiliary_variable()` says
-  which lines have one, which are those `get_auxiliary_variable()` lists in
-  the order of the lines, and the netCDF format of `DCNetworkBlockSolution`
-  does not change, `AuxiliaryValue` keeping one entry for each line, the
-  flow for a line with no auxiliary variable. Once the variables are
-  generated, `set_network_cost()` throws `std::logic_error` if the cost of
-  a line whose flow can be negative would become zero or nonzero, since the
-  line would then lose or need its auxiliary variable; it accepted any
-  change before. On a sector-coupled network of 576 instants, with no cost
-  on the lines whose flow can be negative, this is 24768 variables and
-  49536 rows less in each scenario
+  whose flow can be negative and that have a nonzero `NetworkCost`, as the
+  others have no term to put it in. `has_auxiliary_variable()` says which
+  lines have one, and `set_network_cost()` throws `std::logic_error` if the
+  cost of such a line would become zero or nonzero once the variables are
+  generated
 
 - `BatteryUnitBlock` writes no rows `ActivePower_Battery` (the active power
   bounds (1) and (2)) for a unit whose power has no finite bound at any
   instant, as the Store of PyPSA: they would be free rows, which a Solver
-  keeps with a slack of its own, 50698 of them in each scenario of a
-  sector-coupled network of 576 instants. `get_min_power_constraints()`
-  and `get_max_power_constraints()` then give `nullptr`, as with a design
+  keeps with a slack of its own. `get_min_power_constraints()` and
+  `get_max_power_constraints()` then give `nullptr`, as with a design
   variable, and `get_kappa_linearization()` takes no term from the
   multipliers of the rows that are not there; the optimal value and the
   derivatives are those of before
