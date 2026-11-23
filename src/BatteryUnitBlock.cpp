@@ -914,13 +914,19 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   // the converter power is multiplied by the converter design, or, with no
   // converter design and no "ConverterMaxPower", by the battery design,
   // each module having a converter of its own [see conv_scale_var()]
+  // the rows (5d) and (1d)-(2d) that those of the converter imply at every
+  // instant are not generated [see get_implied_design_rows()]
   ColVariable * const conv_x = conv_scale_var();
   const Index conv_rows = conv_x ? 2 : 0;
   const double conv_kappa = get_converter_kappa();
+  f_implied_rows = implied_design_rows();
+  const bool row_ch = ! ( f_implied_rows & 1u );
+  const bool row_dis = ! ( f_implied_rows & 2u );
+  const Index r2 = io_design_row( 2 );  // the first row of the converter
 
   intake_outtake_upper_bounds_design_Const.resize(
    boost::multi_array< FRowConstraint , 2 >::extent_gen()
-   [ split ? 3 : ( 2 + conv_rows ) ][ f_time_horizon ] );
+   [ io_design_row( split ? 3 : ( 2 + conv_rows ) ) ][ f_time_horizon ] );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    // Upper bound of the intake level design constraints:
@@ -934,20 +940,20 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in charge
-   if( split )
-    vars.push_back( std::make_pair( & v_intake_level[ t ] , 1.0 ) );
-   else
-    vars.push_back( std::make_pair( & v_active_power[ t ] , -1.0 ) );
+   if( row_ch ) {
+    if( split )
+     vars.push_back( std::make_pair( & v_intake_level[ t ] , 1.0 ) );
+    else
+     vars.push_back( std::make_pair( & v_active_power[ t ] , -1.0 ) );
 
-   vars.push_back( std::make_pair( & batt_design ,
-           - kappa_coeff( f_kappa * f_MaxCRateCharge , v_MinPower[ t ] ) ) );
+    vars.push_back( std::make_pair( & batt_design ,
+            - kappa_coeff( f_kappa * f_MaxCRateCharge , v_MinPower[ t ] ) ) );
 
-   intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_lhs(
-     -Inf< double >() );
-   intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_rhs(
-                  std::isinf( v_MinPower[ t ] ) ? Inf< double >() : 0.0 );
-   intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_function(
-                                    new LinearFunction( std::move( vars ) ) );
+    auto & row = intake_outtake_upper_bounds_design_Const[ 0 ][ t ];
+    row.set_lhs( -Inf< double >() );
+    row.set_rhs( std::isinf( v_MinPower[ t ] ) ? Inf< double >() : 0.0 );
+    row.set_function( new LinearFunction( std::move( vars ) ) );
+    }
 
    // Upper bound of the outtake level design constraints:
    //
@@ -960,20 +966,21 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in discharge
-   if( split )
-    vars.push_back( std::make_pair( & v_outtake_level[ t ] , 1.0 ) );
-   else
-    vars.push_back( std::make_pair( & v_active_power[ t ] , 1.0 ) );
+   if( row_dis ) {
+    if( split )
+     vars.push_back( std::make_pair( & v_outtake_level[ t ] , 1.0 ) );
+    else
+     vars.push_back( std::make_pair( & v_active_power[ t ] , 1.0 ) );
 
-   vars.push_back( std::make_pair( & batt_design ,
-           kappa_coeff( f_kappa * f_MaxCRateDischarge , v_MaxPower[ t ] ) ) );
+    vars.push_back( std::make_pair( & batt_design ,
+            kappa_coeff( f_kappa * f_MaxCRateDischarge , v_MaxPower[ t ] ) ) );
 
-   intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_lhs(
-     -Inf< double >() );
-   intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_rhs(
-                  std::isinf( v_MaxPower[ t ] ) ? Inf< double >() : 0.0 );
-   intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_function(
-                                    new LinearFunction( std::move( vars ) ) );
+    auto & row = intake_outtake_upper_bounds_design_Const[ io_design_row( 1 )
+                                                          ][ t ];
+    row.set_lhs( -Inf< double >() );
+    row.set_rhs( std::isinf( v_MaxPower[ t ] ) ? Inf< double >() : 0.0 );
+    row.set_function( new LinearFunction( std::move( vars ) ) );
+    }
 
    // Upper bound of the intake + outtake level design constraints:
    //
@@ -996,10 +1003,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
      vars.push_back( std::make_pair( & v_outtake_level[ t ] , 1 ) );
      vars.push_back( std::make_pair( conv_x , -conv_kappa * conv_power ) );
 
-     intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs(
+     intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_lhs(
                                                            -Inf< double >() );
-     intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_rhs( 0 );
-     intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_function(
+     intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_rhs( 0 );
+     intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_function(
       new LinearFunction( std::move( vars ) ) );
      }
     else
@@ -1009,21 +1016,21 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
       vars.push_back( std::make_pair( &v_intake_level[ t ] , 1 ) );
       vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1 ) );
 
-      intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs(
+      intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_lhs(
                                                           -Inf< double >() );
-      intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_rhs(
+      intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_rhs(
                                                  conv_kappa * conv_power );
-      intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_function(
+      intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
       }
      else {
       // Case 3: no converter limit -> a free row with no term
       // Avoid generating "il + ol <= 0" which would switch off the battery
-      intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs(
+      intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_lhs(
                                                          -Inf< double >() );
-      intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_rhs(
+      intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_rhs(
                                                           Inf< double >() );
-      intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_function(
+      intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_function(
                                   new LinearFunction( std::move( vars ) ) );
       }
     }
@@ -1039,22 +1046,22 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( binding )
       vars.push_back( std::make_pair( conv_x , -conv_kappa * conv_power ) );
 
-     intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs(
+     intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_lhs(
                                                           -Inf< double >() );
-     intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_rhs(
+     intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_rhs(
                                      binding ? 0. : Inf< double >() );
-     intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_function(
+     intake_outtake_upper_bounds_design_Const[ r2 ][ t ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
 
      vars.push_back( std::make_pair( & v_active_power[ t ] , -1.0 ) );
      if( binding )
       vars.push_back( std::make_pair( conv_x , -conv_kappa * conv_power ) );
 
-     intake_outtake_upper_bounds_design_Const[ 3 ][ t ].set_lhs(
+     intake_outtake_upper_bounds_design_Const[ r2 + 1 ][ t ].set_lhs(
                                                           -Inf< double >() );
-     intake_outtake_upper_bounds_design_Const[ 3 ][ t ].set_rhs(
+     intake_outtake_upper_bounds_design_Const[ r2 + 1 ][ t ].set_rhs(
                                      binding ? 0. : Inf< double >() );
-     intake_outtake_upper_bounds_design_Const[ 3 ][ t ].set_function(
+     intake_outtake_upper_bounds_design_Const[ r2 + 1 ][ t ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
      }
    }
@@ -1096,70 +1103,84 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   // Active power bounds design constraints - - - - - - - - - - - - - - - - -
 
-  active_power_bounds_design_Const.resize(
-   boost::multi_array< FRowConstraint , 2 >::extent_gen()
-   [ 2 ][ f_time_horizon ] );  // 2 dims, i.e., the lower and upper bounds
+  // the lower and the upper bound, those not implied by the rows of the
+  // converter [see get_implied_design_rows()]
+  const bool row_lo = ! ( f_implied_rows & 4u );
+  const bool row_up = ! ( f_implied_rows & 8u );
+  const Index n_power = power_design_row( 2 );
 
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   // Lower bound of the active power design constraints:
-   //
-   //      v_minimum_power x_b <= v_active_power
-   // => 0 <= v_active_power - v_minimum_power x_b
+  if( n_power > 0 ) {
+   active_power_bounds_design_Const.resize(
+    boost::multi_array< FRowConstraint , 2 >::extent_gen()
+    [ n_power ][ f_time_horizon ] );
 
-   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    if( row_lo ) {
+     // Lower bound of the active power design constraints:
+     //
+     //      v_minimum_power x_b <= v_active_power
+     // => 0 <= v_active_power - v_minimum_power x_b
 
-   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-    if( ! v_MaxPrimaryPower.empty() )
-     // if this unit produces any primary reserve
-      vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                      -1.0 ) );
+     vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
-   if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
-    if( ! v_MaxSecondaryPower.empty() )
-     // if unit produces any secondary reserve
-      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                      -1.0 ) );
+     if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+      if( ! v_MaxPrimaryPower.empty() )
+       // if this unit produces any primary reserve
+        vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                        -1.0 ) );
 
-   vars.push_back( std::make_pair( &batt_design ,
-                                  kappa_coeff( f_kappa , v_MinPower[ t ] ) ) );
+     if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
+      if( ! v_MaxSecondaryPower.empty() )
+       // if unit produces any secondary reserve
+        vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                        -1.0 ) );
 
-   active_power_bounds_design_Const[ 0 ][ t ].set_lhs(
-                 std::isinf( v_MinPower[ t ] ) ? -Inf< double >() : 0.0 );
-   active_power_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
-   active_power_bounds_design_Const[ 0 ][ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+     vars.push_back( std::make_pair( &batt_design ,
+                                     kappa_coeff( f_kappa ,
+                                                  v_MinPower[ t ] ) ) );
 
-   // Upper bound of the active power design constraints:
-   //
-   //      v_active_power <= v_maximum_power x_b
-   // => v_active_power - v_maximum_power x_b <= 0
+     active_power_bounds_design_Const[ 0 ][ t ].set_lhs(
+                   std::isinf( v_MinPower[ t ] ) ? -Inf< double >() : 0.0 );
+     active_power_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
+     active_power_bounds_design_Const[ 0 ][ t ].set_function(
+      new LinearFunction( std::move( vars ) ) );
+     }
 
-   vars.push_back( std::make_pair( & v_active_power[ t ] , 1.0 ) );
+    if( row_up ) {
+     // Upper bound of the active power design constraints:
+     //
+     //      v_active_power <= v_maximum_power x_b
+     // => v_active_power - v_maximum_power x_b <= 0
 
-   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-    if( ! v_MaxPrimaryPower.empty() )
-     // if this unit produces any primary reserve
-      vars.push_back( std::make_pair( & v_primary_spinning_reserve[ t ] ,
-                                      1.0 ) );
+     vars.push_back( std::make_pair( & v_active_power[ t ] , 1.0 ) );
 
-   if( reserve_vars & 2u )  // if UCBlock has secondary demand variable
-    if( ! v_MaxSecondaryPower.empty() )
-     // if this unit produces any secondary reserve
-      vars.push_back( std::make_pair( & v_secondary_spinning_reserve[ t ] ,
-                                      1.0 ) );
+     if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+      if( ! v_MaxPrimaryPower.empty() )
+       // if this unit produces any primary reserve
+        vars.push_back( std::make_pair( & v_primary_spinning_reserve[ t ] ,
+                                        1.0 ) );
 
-   vars.push_back( std::make_pair( &batt_design ,
-                                  kappa_coeff( f_kappa , v_MaxPower[ t ] ) ) );
+     if( reserve_vars & 2u )  // if UCBlock has secondary demand variable
+      if( ! v_MaxSecondaryPower.empty() )
+       // if this unit produces any secondary reserve
+        vars.push_back( std::make_pair( & v_secondary_spinning_reserve[ t ] ,
+                                        1.0 ) );
 
-   active_power_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
-   active_power_bounds_design_Const[ 1 ][ t ].set_rhs(
-                  std::isinf( v_MaxPower[ t ] ) ? Inf< double >() : 0.0 );
-   active_power_bounds_design_Const[ 1 ][ t ].set_function(
-                                 new LinearFunction( std::move( vars ) ) );
-   }
+     vars.push_back( std::make_pair( &batt_design ,
+                                     kappa_coeff( f_kappa ,
+                                                  v_MaxPower[ t ] ) ) );
 
-  add_static_constraint( active_power_bounds_design_Const ,
-                         "ActivePower_Design_Battery" );
+     auto & row =
+      active_power_bounds_design_Const[ power_design_row( 1 ) ][ t ];
+     row.set_lhs( -Inf< double >() );
+     row.set_rhs( std::isinf( v_MaxPower[ t ] ) ? Inf< double >() : 0.0 );
+     row.set_function( new LinearFunction( std::move( vars ) ) );
+     }
+    }
+
+   add_static_constraint( active_power_bounds_design_Const ,
+                          "ActivePower_Design_Battery" );
+  }
 
   // Battery design bounds. f_BattMaxCapacityDesign < 0 selects integer
   // design with bound |f_BattMaxCapacityDesign|; >= 0 selects continuous
@@ -2284,37 +2305,26 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    // else the bound is the converter fence [see update_conv_kappa_rows()]
   }
 
+ // the rows (5d) that are generated [see get_implied_design_rows()]
+ auto design_coeff = [ & ]( FRowConstraint & row , double coeff ) {
+  auto f = static_cast< LinearFunction * >( row.get_function() );
+  const auto idx = f->is_active( &batt_design );
+  if( idx == Inf< Index >() )
+   throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
+                            "expected Variable not found in the rows of "
+                            "the battery design" ) );
+  f->modify_coefficient( idx , coeff , nAM );
+  };
+
  if( ! intake_outtake_upper_bounds_design_Const.empty() )
-
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-   auto f0 = static_cast< LinearFunction * >(
-    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].get_function() );
-
-   const auto batt_design_idx0 = f0->is_active( &batt_design );
-
-   if( batt_design_idx0 == Inf< Index >() )
-    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
-                             "expected Variable not found in "
-                             "intake_outtake_upper_bounds_design_Const." ) );
-
-   f0->modify_coefficient( batt_design_idx0 ,
-             - kappa_coeff( f_kappa * f_MaxCRateCharge , v_MinPower[ t ] ) ,
-                           nAM );
-
-   auto f1 = static_cast< LinearFunction * >(
-    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].get_function() );
-
-   const auto batt_design_idx1 = f1->is_active( &batt_design );
-
-   if( batt_design_idx1 == Inf< Index >() )
-    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
-                             "expected Variable not found in "
-                             "intake_outtake_upper_bounds_design_Const." ) );
-
-   f1->modify_coefficient( batt_design_idx1 ,
-             kappa_coeff( f_kappa * f_MaxCRateDischarge , v_MaxPower[ t ] ) ,
-                           nAM );
+   if( ! ( f_implied_rows & 1u ) )
+    design_coeff( intake_outtake_upper_bounds_design_Const[ 0 ][ t ] ,
+           - kappa_coeff( f_kappa * f_MaxCRateCharge , v_MinPower[ t ] ) );
+   if( ! ( f_implied_rows & 2u ) )
+    design_coeff( intake_outtake_upper_bounds_design_Const[
+                                                    io_design_row( 1 ) ][ t ] ,
+           kappa_coeff( f_kappa * f_MaxCRateDischarge , v_MaxPower[ t ] ) );
    }
 
  // the converter follows kappa unless it has a kappa of its own
@@ -2331,36 +2341,15 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
   }
 
  else if( ! active_power_bounds_design_Const.empty() )
-
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   auto f0 = static_cast< LinearFunction * >(
-    active_power_bounds_design_Const[ 0 ][ t ].get_function() );
-
-   const auto batt_design_idx0 = f0->is_active( &batt_design );
-
-   if( batt_design_idx0 == Inf< Index >() )
-    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
-                             "expected Variable not found in "
-                             "active_power_bounds_design_Const." ) );
-
-   f0->modify_coefficient( batt_design_idx0 ,
-                           kappa_coeff( f_kappa , v_MinPower[ t ] ) ,
-                           nAM );
-
-   auto f1 = static_cast< LinearFunction * >(
-    active_power_bounds_design_Const[ 1 ][ t ].get_function() );
-
-   const auto batt_design_idx1 = f1->is_active( &batt_design );
-
-   if( batt_design_idx1 == Inf< Index >() )
-    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
-                             "expected Variable not found in "
-                             "active_power_bounds_design_Const." ) );
-
-   f1->modify_coefficient( batt_design_idx1 ,
-                           kappa_coeff( f_kappa , v_MaxPower[ t ] ) ,
-                           nAM );
-  }
+   if( ! ( f_implied_rows & 4u ) )
+    design_coeff( active_power_bounds_design_Const[ 0 ][ t ] ,
+                  kappa_coeff( f_kappa , v_MinPower[ t ] ) );
+   if( ! ( f_implied_rows & 8u ) )
+    design_coeff( active_power_bounds_design_Const[ power_design_row( 1 ) ]
+                                                  [ t ] ,
+                  kappa_coeff( f_kappa , v_MaxPower[ t ] ) );
+   }
 
  if( ! storage_level_bounds_Const.empty() )
 
@@ -2481,6 +2470,47 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
 /*--------------------------------------------------------------------------*/
 
+unsigned char BatteryUnitBlock::implied_design_rows( void ) const
+{
+ // the rows of the converter are k P^cv_t x_b, with the battery design and
+ // the kappa of the battery, only with no converter design and no
+ // "ConverterMaxPower" and a converter that follows kappa
+ if( ( f_BattInvestmentCost == 0 ) || ( f_ConvInvestmentCost != 0 ) ||
+     f_conv_max_power_given || ( ! converter_follows_kappa() ) )
+  return( 0 );
+
+ const bool reserve = ( ( reserve_vars & 1u ) &&
+                        ( ! v_MaxPrimaryPower.empty() ) ) ||
+                      ( ( reserve_vars & 2u ) &&
+                        ( ! v_MaxSecondaryPower.empty() ) );
+
+ // a row is implied at t if its bound is infinite, or if the converter
+ // binds at t with a coefficient of x_b not larger than that of the row
+ auto implied = [ this ]( Index t , double bound ) {
+  return( std::isinf( bound ) ||
+          ( converter_binds( t ) && ( v_ConvMaxPower[ t ] <= bound ) ) );
+  };
+
+ unsigned char rows = reserve ? 3 : 15;
+ for( Index t = 0 ; ( t < f_time_horizon ) && rows ; ++t ) {
+  const double mn = - v_MinPower[ t ];
+  const double mx = v_MaxPower[ t ];
+  if( ! implied( t , f_MaxCRateCharge * mn ) )
+   rows &= ~1u;
+  if( ! implied( t , f_MaxCRateDischarge * mx ) )
+   rows &= ~2u;
+  if( ! implied( t , mn ) )
+   rows &= ~4u;
+  if( ! implied( t , mx ) )
+   rows &= ~8u;
+  }
+
+ return( rows );
+
+ }  // end( BatteryUnitBlock::implied_design_rows )
+
+/*--------------------------------------------------------------------------*/
+
 void BatteryUnitBlock::update_conv_kappa_rows( ModParam nAM )
 {
  const double conv_kappa = get_converter_kappa();
@@ -2510,7 +2540,8 @@ void BatteryUnitBlock::update_conv_kappa_rows( ModParam nAM )
     // of the battery if the converter has none [see conv_scale_var()])
     const Index rows = split ? 1 : 2;
 
-    for( Index row = 2 ; row < 2 + rows ; ++row ) {
+    for( Index row = io_design_row( 2 ) ; row < io_design_row( 2 ) + rows ;
+         ++row ) {
      auto f2 = static_cast< LinearFunction * >(
       intake_outtake_upper_bounds_design_Const[ row ][ t ].get_function() );
 
@@ -2527,8 +2558,8 @@ void BatteryUnitBlock::update_conv_kappa_rows( ModParam nAM )
     }
    else
     if( split )
-     intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_rhs(
-      conv_kappa * v_ConvMaxPower[ t ] , nAM );
+     intake_outtake_upper_bounds_design_Const[ io_design_row( 2 ) ][ t ]
+      .set_rhs( conv_kappa * v_ConvMaxPower[ t ] , nAM );
    }
 
  // the converter fence of a battery with no design Variable: the converter
@@ -2659,6 +2690,13 @@ void BatteryUnitBlock::set_converter_kappa( MF_dbl_sp values ,
   throw( std::logic_error( "BatteryUnitBlock::set_converter_kappa: the "
    "battery has no converter rows, which exist only if \"ConverterMaxPower\" "
    "or \"ConverterKappa\" is in the data, or a design variable exists" ) );
+
+ // the rows of the design that the converter implies are not there, and a
+ // kappa of its own may no longer imply them [see get_implied_design_rows()]
+ if( constraints_generated() && f_implied_rows )
+  throw( std::logic_error( "BatteryUnitBlock::set_converter_kappa: the rows "
+   "of the battery design implied by those of the converter have not been "
+   "generated, and a kappa of the converter of its own may not imply them" ) );
 
  if( not_dry_run( issuePMod ) ) {
   f_conv_kappa = value;  // from now on the converter has a kappa of its own

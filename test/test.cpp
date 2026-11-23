@@ -10640,8 +10640,13 @@ static void test_battery_converter_modules( void )
    const auto & rows = bu->get_intake_outtake_design_rows();
    const auto & x = bu->get_const_batt_design();
    const Index nconv = split ? 1 : 2;
-   bool ok = ( rows.shape()[ 0 ] == 2 + nconv );
-   for( Index r = 2 ; ok && ( r < 2 + nconv ) ; ++r )
+   // the converter of the module, of the power of the module and with the
+   // C-rates 1, implies the rows of the C-rates and the bounds of the power
+   const Index c0 = bu->get_converter_design_row();
+   check( ( bu->get_implied_design_rows() == 15 ) && ( c0 == 0 ) ,
+          who + ": the rows implied by the converter are generated" );
+   bool ok = ( rows.shape()[ 0 ] == c0 + nconv );
+   for( Index r = c0 ; ok && ( r < c0 + nconv ) ; ++r )
     ok = close( row_coef( rows[ r ][ 0 ] , & x ) , -10 );
    check( ok , who + ": no converter row with the coefficient -10 of the "
           "battery design" );
@@ -10652,12 +10657,57 @@ static void test_battery_converter_modules( void )
            str( e ) + " (the converter of one module)" );
     }
    bu->set_kappa( 2 );
-   ok = ( rows.shape()[ 0 ] == 2 + nconv );
-   for( Index r = 2 ; ok && ( r < 2 + nconv ) ; ++r )
+   ok = ( rows.shape()[ 0 ] == c0 + nconv );
+   for( Index r = c0 ; ok && ( r < c0 + nconv ) ; ++r )
     ok = close( row_coef( rows[ r ][ 1 ] , & x ) , -20 );
    check( ok , who + ", set_kappa( 2 ): converter rows not updated" );
+   // a kappa of the converter of its own may not imply the missing rows
+   bool threw = false;
+   try {
+    bu->set_converter_kappa( 0.5 );
+    }
+   catch( std::logic_error & ) {
+    threw = true;
+    }
+   check( threw , who + ": set_converter_kappa() does not throw with the "
+          "implied rows missing" );
    delete bu;
    }
+
+ // with the C-rate in charge 0.5 the converter of the module no longer
+ // implies the row of the intake, which is generated, and the
+ // value is the same
+ for( int split = 0 ; split < 2 ; ++split ) {
+  const auto who = std::string( "battery converter per module, C-rate in "
+                                "charge 0.5, " ) +
+                   ( split ? "split" : "folded" );
+  std::vector< std::pair< std::string , std::vector< double > > > data = {
+   { "MinStorage" , { 0 , 0 } } , { "MaxStorage" , { 100 , 100 } } ,
+   { "MaxPower" , { 10 , 10 } } , { "MinPower" , { -10 , -10 } } ,
+   { "Cost" , { -5 , 5 } } , { "MaxCRateCharge" , { 0.5 } } ,
+   { "BatteryInvestmentCost" , { 1 } } ,
+   { "BatteryMinCapacityDesign" , { 3 } } ,
+   { "BatteryMaxCapacityDesign" , { 3 } } };
+  if( split )
+   data.push_back( { "StoringBatteryRho" , { 0.9 , 0.9 } } );
+  auto bu = new_BU( 2 , data );
+  if( ! bu ) {
+   check( false , who + ": not read" );
+   continue;
+   }
+  SimpleConfiguration< int > negative_prices( split ? 1 : 0 );
+  bu->generate_abstract_variables( & negative_prices );
+  bu->generate_abstract_constraints();
+  bu->generate_objective();
+  const auto & rows = bu->get_intake_outtake_design_rows();
+  const auto & x = bu->get_const_batt_design();
+  const Index c0 = bu->get_converter_design_row();
+  check( ( bu->get_implied_design_rows() == 14 ) && ( c0 == 1 ) &&
+         close( row_coef( rows[ 0 ][ 0 ] , & x ) , -5 ) ,
+         who + ": the row of the intake is not generated with the "
+         "coefficient -5 of the battery design" );
+  delete bu;
+  }
 
  // ConverterMaxPower given: the converter is of fixed size, one module's
  if( ! sname.empty() ) {

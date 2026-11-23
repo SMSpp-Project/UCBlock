@@ -39,6 +39,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the protected `get_voltage_angle()`, and `DCNetworkBlock` has a data
   member more
 
+- `BatteryUnitBlock` with a battery design, a converter with no design and
+  no `ConverterMaxPower` (a converter of the power of each module) and no
+  `ConverterKappa` does not generate the rows of the C-rates
+  (`IntakeOuttake_Design_Battery`) and the bounds of the power
+  (`ActivePower_Design_Battery`, with no reserve) that the rows of the
+  converter imply at every instant; `get_implied_design_rows()` says which,
+  `get_converter_design_row()` where the rows of the converter start in
+  `get_intake_outtake_design_rows()`, and `set_converter_kappa()` throws
+  `std::logic_error` if any row is missing, since a kappa of the converter
+  of its own may no longer imply it; `set_kappa()`, which resizes battery
+  and converter together, keeps them implied
+
 - `DCNetworkBlock` generates the auxiliary variable `V_l >= | F_l |` of the
   network cost, and its two rows `power_flow_relax_abs`, only for the lines
   whose flow can be negative and that have a nonzero `NetworkCost`, as the

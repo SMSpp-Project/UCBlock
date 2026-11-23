@@ -703,8 +703,9 @@ class BatteryUnitBlock : public UnitBlock
   * - (1) and (2) are "ActivePower_Battery", a 2 x T multi_array of
   *   FRowConstraint whose first index is 0 for (2) and 1 for (1); with a
   *   battery design variable they are "ActivePower_Design_Battery", with
-  *   the same layout, and "ActivePower_Battery" is empty, as it is if the
-  *   power has no finite bound at any instant;
+  *   the same layout less the rows that those of the converter imply [see
+  *   get_implied_design_rows()], and "ActivePower_Battery" is empty, as it
+  *   is if the power has no finite bound at any instant;
   *
   * - (3) are "RampUp_Battery" and "RampDown_Battery", two vectors of
   *   FRowConstraint;
@@ -714,8 +715,10 @@ class BatteryUnitBlock : public UnitBlock
   * - (5) is "IntakeOuttake_Battery", a 2 x T multi_array of BoxConstraint
   *   whose first index is 0 for the intake and 1 for the outtake, or a
   *   1 x T one on the active power when the split is not generated; with a
-  *   battery design variable (5d) is in the rows 0 (intake) and 1 (outtake)
-  *   of "IntakeOuttake_Design_Battery", a multi_array of FRowConstraint;
+  *   battery design variable (5d) is in the first rows of
+  *   "IntakeOuttake_Design_Battery", a multi_array of FRowConstraint, the
+  *   intake before the outtake, less those that the rows of the converter
+  *   imply [see get_intake_outtake_design_rows()];
   *
   * - (6) is "Demand_Battery", a vector of FRowConstraint [see
   *   get_storage_balance_constraints()];
@@ -737,8 +740,9 @@ class BatteryUnitBlock : public UnitBlock
   *   outtake, or two (on \f$ p^{ac}_t \f$ and on \f$ - p^{ac}_t \f$) when
   *   the split is not generated, per instant where \f$ P^{cv}_t \f$ is
   *   positive and finite [see get_converter_bounds()]; with a battery
-  *   design variable it is the row 2 of "IntakeOuttake_Design_Battery", or
-  *   its rows 2 and 3 on \f$ \pm p^{ac}_t \f$ when the split is not
+  *   design variable it is the row get_converter_design_row() of
+  *   "IntakeOuttake_Design_Battery", or that row and the next one on
+  *   \f$ \pm p^{ac}_t \f$ when the split is not
   *   generated and (10d) holds (a converter design variable, or none and no
   *   "ConverterMaxPower"), or, when the split is not generated and the
   *   converter power is the constant "ConverterMaxPower", the bound on
@@ -1531,15 +1535,50 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the intake and outtake rows of a battery with a design variable
  /** The rows "IntakeOuttake_Design_Battery" of a battery with a design
-  * Variable, empty if there is none: the first index is 0 and 1 for the
-  * two rows (5d), and 2 (and 3, on \f$ \pm p^{ac}_t \f$, when the pair is
-  * folded onto the active power) for the rows (10d) or for the bound (10)
-  * with the constant converter power [see generate_abstract_constraints()].
-  */
+  * Variable, empty if there is none: first the rows (5d) that are not
+  * implied by the rows (10d) [see get_implied_design_rows()], the intake
+  * before the outtake, and then, from get_converter_design_row() on, the
+  * rows (10d) (two, on \f$ \pm p^{ac}_t \f$, when the pair is folded onto
+  * the active power) or the bound (10) with the constant converter power
+  * [see generate_abstract_constraints()]. */
 
  const boost::multi_array< FRowConstraint , 2 > &
  get_intake_outtake_design_rows( void ) const {
   return( intake_outtake_upper_bounds_design_Const );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the first index of the rows of the converter in the design rows
+ /** The first index of get_intake_outtake_design_rows() that is a row of
+  * the converter, i.e., the number of rows (5d) that are generated. */
+
+ Index get_converter_design_row( void ) const {
+  return( io_design_row( 2 ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the rows of a battery design that are implied by those of its converter
+ /** Returns the rows that generate_abstract_constraints() has not
+  * generated since the rows (10d) imply them at every instant, bit-coded:
+  * 1 for the row (5d) of the intake, 2 for that of the outtake, 4 for the
+  * row (2d) and 8 for the row (1d). This happens only for a battery whose
+  * converter has no design and no "ConverterMaxPower", so that the rows
+  * (10d) bound \f$ p^-_t + p^+_t \f$ (or \f$ \pm p^{ac}_t \f$) by
+  * \f$ \kappa P^{cv}_t x_b \f$, and that follows \f$ \kappa \f$: then
+  *
+  * - the row (5d) of the intake is implied if \f$ P^{cv}_t \leq - C^{ch}
+  *   P^{mn}_t \f$, and that of the outtake if \f$ P^{cv}_t \leq C^{dis}
+  *   P^{mx}_t \f$;
+  *
+  * - with no reserve, the row (2d) is implied if \f$ P^{cv}_t \leq
+  *   - P^{mn}_t \f$, and the row (1d) if \f$ P^{cv}_t \leq P^{mx}_t \f$;
+  *
+  * a row with an infinite bound being implied in any case. Since all these
+  * coefficients follow \f$ \kappa \f$, set_kappa() keeps them implied,
+  * while set_converter_kappa() throws if any row is missing. */
+
+ unsigned char get_implied_design_rows( void ) const {
+  return( f_implied_rows );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -2055,6 +2094,10 @@ class BatteryUnitBlock : public UnitBlock
  /// true if "ConverterMaxPower" was in the data
  bool f_conv_max_power_given;
 
+ /// the rows of the battery design not generated, see
+ /// get_implied_design_rows()
+ unsigned char f_implied_rows = 0;
+
  /// the reference Schedule to deviate minimally from if there
  std::vector< double > v_RefSchedule;
 
@@ -2209,6 +2252,42 @@ class BatteryUnitBlock : public UnitBlock
   if( ( f_BattInvestmentCost != 0 ) && ( ! f_conv_max_power_given ) )
    return( & batt_design );
   return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the rows of the battery design implied by those of the converter
+ /** Computes what get_implied_design_rows() returns, from the data. */
+
+ unsigned char implied_design_rows( void ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// the position of a row of "IntakeOuttake_Design_Battery"
+ /** The first index in intake_outtake_upper_bounds_design_Const of the row
+  * \p r of the full layout: 0 and 1 for the rows (5d) of the intake and of
+  * the outtake, if generated, 2 and 3 for those of the converter. */
+
+ Index io_design_row( Index r ) const {
+  const Index skip0 = f_implied_rows & 1u;
+  if( r == 0 )
+   return( 0 );
+  if( r == 1 )
+   return( 1 - skip0 );
+  return( r - skip0 - ( ( f_implied_rows >> 1 ) & 1u ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the position of a row of "ActivePower_Design_Battery"
+ /** The first index in active_power_bounds_design_Const of the row \p r of
+  * the full layout, 0 for the lower and 1 for the upper bound, if
+  * generated; 2 gives the number of rows that are generated. */
+
+ Index power_design_row( Index r ) const {
+  const Index skip0 = ( f_implied_rows >> 2 ) & 1u;
+  if( r == 0 )
+   return( 0 );
+  if( r == 1 )
+   return( 1 - skip0 );
+  return( 2 - skip0 - ( ( f_implied_rows >> 3 ) & 1u ) );
   }
 
 /*--------------------------------------------------------------------------*/
