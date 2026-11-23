@@ -347,7 +347,9 @@ namespace SMSpp_di_unipi_it
  * only bounded by its levels and by the lines that connect it, as the Store
  * of PyPSA, has \f$ P^{mx}_t = + \infty \f$ and
  * \f$ P^{mn}_t = - \infty \f$, and no row of its power has a term in
- * \f$ x_b \f$. The Objective is
+ * \f$ x_b \f$; if \f$ P^{mx}_t = + \infty \f$ and \f$ P^{mn}_t = - \infty \f$
+ * at every instant, (1) and (2) are not written at all, as they would be free
+ * rows. The Objective is
  * \f[
  *   \sum_{ t \in \mathcal{T} } b_t ( p^-_t - p^+_t ) +
  *   c^{inv}_b x_b + c^{inv}_c x_c \tag{12}
@@ -701,7 +703,8 @@ class BatteryUnitBlock : public UnitBlock
   * - (1) and (2) are "ActivePower_Battery", a 2 x T multi_array of
   *   FRowConstraint whose first index is 0 for (2) and 1 for (1); with a
   *   battery design variable they are "ActivePower_Design_Battery", with
-  *   the same layout, and "ActivePower_Battery" is empty;
+  *   the same layout, and "ActivePower_Battery" is empty, as it is if the
+  *   power has no finite bound at any instant;
   *
   * - (3) are "RampUp_Battery" and "RampDown_Battery", two vectors of
   *   FRowConstraint;

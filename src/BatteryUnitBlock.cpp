@@ -836,7 +836,19 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    }
 
   // Active power bounds constraints- - - - - - - - - - - - - - - - - - - - -
+  // a unit whose power has no finite bound at any instant, as a store of
+  // PyPSA, gets no rows: they would bound nothing, and a Solver keeps a free
+  // row with a slack of its own
 
+  bool finite_power = false;
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( ( ! std::isinf( get_min_power( t ) ) ) ||
+       ( ! std::isinf( get_max_power( t ) ) ) ) {
+    finite_power = true;
+    break;
+    }
+
+  if( finite_power ) {
   active_power_bounds_Const.resize(
    boost::multi_array< FRowConstraint , 2 >::extent_gen()
    [ 2 ][ f_time_horizon ] );  // 2 dims, i.e., the lower and upper bounds
@@ -884,6 +896,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    }
 
   add_static_constraint( active_power_bounds_Const , "ActivePower_Battery" );
+  }
   }
  else {
   // battery design variable- - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2892,8 +2905,14 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
    * side its sign points at. Elsewhere the terms are summed: with a reserve
    * the rows fence p - r and p + r, which can hold together. */
 
-  const auto lambda_min = std::abs( min_power_constraints[ t ].get_dual() );
-  const auto lambda_max = std::abs( max_power_constraints[ t ].get_dual() );
+  // no rows where the power has no finite bound [see
+  // generate_abstract_constraints()]: no multiplier, hence no term
+  const auto lambda_min = min_power_constraints
+			    ? std::abs( min_power_constraints[ t ].get_dual() )
+			    : 0.0;
+  const auto lambda_max = max_power_constraints
+			    ? std::abs( max_power_constraints[ t ].get_dual() )
+			    : 0.0;
 
   linearization += ( f_kappa == 0 )
    ? safe( term( lambda_min , min_power ) , term( - lambda_max , max_power ) )
