@@ -1939,6 +1939,19 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
+ /// the node injection as a function of the flows
+ /** With the balance rows in the father, which happens only in the
+  * KIRCHHOFF formulation [see NetworkBlock::set_balance_in_father()], the
+  * node balance (12) of \p node solved for its node injection, i.e.,
+  * \f$ S_n = \sum_{l : start(l) = n} F_l - \sum_{l : end(l) = n}
+  * \eta_l F_l + D_n \f$; there is one interval and no reactive power. */
+
+ bool get_balance_constraint_coefficients( Index interval , Index node ,
+					   bool reactive ,
+				      std::vector< InjectionTerm > & terms ,
+					   double & constant ) const override;
+
+/*--------------------------------------------------------------------------*/
  /// returns true if there is any design variable associated with some line
 
  bool has_design( void ) const {
@@ -2614,6 +2627,26 @@ class DCNetworkData : public NetworkData
    return( nullptr );
   return( &v_voltage_angle[ v_voltage_angle_index[ node ] ] );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// appends to \p vars the flows of the node balance (12) of node \p n
+ /** The terms \f$ F_l \f$ of the lines that start at \p n and
+  * \f$ - \eta_l F_l \f$ of those that end at it, the branches of the
+  * hyperarcs included, which with \f$ - S_n \f$ make the node balance
+  * [see generate_node_balance_constraints()]. */
+
+ void node_balance_flows( Index n , LinearFunction::v_coeff_pair & vars );
+
+/*--------------------------------------------------------------------------*/
+ /// tells whether the father can write the rows of the node injections
+ /** True if, in the formulation \p wf (0 PTDF, 1 CYCLE, 2 KIRCHHOFF), the
+  * node injection of a node enters exactly one row, linearly, which the
+  * father can then write [see NetworkBlock::set_balance_in_father()]: it
+  * is only the KIRCHHOFF formulation, in the other two the node injections
+  * enter every row of the lines. A derived class with rows of its own
+  * redefines it. */
+
+ virtual bool balance_allowed( Index wf ) const { return( wf == 2 ); }
 
 /*--------------------------------------------------------------------------*/
  /// kappa times the capacity of the lines in \p subset

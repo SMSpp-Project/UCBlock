@@ -538,6 +538,18 @@ class ECNetworkBlock : public NetworkBlock
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// the node injection as a function of the Variable of the network
+ /** With the balance rows in the father [see
+  * NetworkBlock::set_balance_in_father()], the power balance of \p node at
+  * \p interval solved for its node injection, i.e.,
+  * \f$ s = P^+ - P^- + D \f$; there is no reactive power. */
+
+ bool get_balance_constraint_coefficients( Index interval , Index node ,
+					   bool reactive ,
+				      std::vector< InjectionTerm > & terms ,
+					   double & constant ) const override;
+
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the energy is shared between users in the community

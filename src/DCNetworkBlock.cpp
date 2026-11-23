@@ -823,15 +823,20 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
 
- // call the method of the base class to generate node injection variables
- NetworkBlock::generate_abstract_variables( stvv );
-
  // read Configuration to set the formulation
  Index wf = 2;  // 0: PTDF, 1: cycle, 2: Kirchhoff (default)
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
  if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )
   wf = sci->f_value;
+
+ // the father can write the rows of the node injections only if each of
+ // them enters one row [see set_balance_in_father()]
+ f_balance_in_father = f_balance_asked && ( get_number_nodes() > 1 ) &&
+                       balance_allowed( wf );
+
+ // call the method of the base class to generate node injection variables
+ NetworkBlock::generate_abstract_variables( stvv );
 
  // flow and (if necessary) auxiliary cost variables are always there
  generate_PTDF_variables();
@@ -1400,49 +1405,19 @@ void DCNetworkBlock::generate_node_balance_constraints( void )
  // KCL at every node:
  // -S_n + sum_{l: start(l)=n} F_l - sum_{l: end(l)=n} eta_l F_l = -D_n
 
+ // the father writes the rows, with the node injection replaced by the
+ // flows [see get_balance_constraint_coefficients()]
+ if( f_balance_in_father )
+  return;
+
  const auto number_nodes = get_number_nodes();
- const auto & start_line = f_NetworkData->get_start_line();
- const auto & end_line = f_NetworkData->get_end_line();
  LinearFunction::v_coeff_pair vars;
 
  v_KIRCHHOFF_node_balance_const.resize( number_nodes );
 
  for( Index n = 0 ; n < number_nodes ; ++n ) {
   vars.emplace_back( & v_node_injection[ 0 ][ n ] , -1.0 );
-
-  // DC lines (regular arcs, never hyperarcs)
-  if( ! f_NetworkData->is_HVDC() ) {
-   for( auto & l : f_NetworkData->get_DC_lines() ) {
-    if( start_line[ l ] == n )
-     vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-    double eta = get_line_efficiency( l );
-    if( end_line[ l ] == n )
-     vars.emplace_back( & v_power_flow[ l ] , -eta );
-    }
-   }
-
-  // HVDC lines (maybe hyperarcs)
-  if( ! f_NetworkData->is_DC() ) {
-   for( auto & l : f_NetworkData->get_HVDC_lines() ) {
-    if( start_line[ l ] == n )
-     vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-
-    if( ! f_NetworkData->is_hypergraph() ) {
-     double eta = get_line_efficiency( l );
-     if( end_line[ l ] == n )
-      vars.emplace_back( & v_power_flow[ l ] , -eta );
-     }
-    else {
-     for( Index i = 0 ;
-          i < f_NetworkData->get_end_lines()[ l ].size() ; ++i ) {
-      if( f_NetworkData->get_end_lines()[ l ][ i ] == n ) {
-       double eta = get_line_efficiencies( l )[ i ];
-       vars.emplace_back( & v_power_flow[ l ] , -eta );
-       }
-      }
-     }
-    }
-   }
+  node_balance_flows( n , vars );
 
   v_KIRCHHOFF_node_balance_const[ n ].set_both( -v_ActiveDemand[ n ] );
   v_KIRCHHOFF_node_balance_const[ n ].set_function(
@@ -1453,6 +1428,74 @@ void DCNetworkBlock::generate_node_balance_constraints( void )
                         "KIRCHHOFF_node_balance" );
 
  }  // end( DCNetworkBlock::generate_node_balance_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::node_balance_flows( Index n ,
+                                         LinearFunction::v_coeff_pair & vars )
+{
+ // the flows of the KCL of node n:
+ // sum_{l: start(l)=n} F_l - sum_{l: end(l)=n} eta_l F_l
+
+ const auto & start_line = f_NetworkData->get_start_line();
+ const auto & end_line = f_NetworkData->get_end_line();
+
+ // DC lines (regular arcs, never hyperarcs)
+ if( ! f_NetworkData->is_HVDC() ) {
+  for( auto & l : f_NetworkData->get_DC_lines() ) {
+   if( start_line[ l ] == n )
+    vars.emplace_back( & v_power_flow[ l ] , 1.0 );
+   double eta = get_line_efficiency( l );
+   if( end_line[ l ] == n )
+    vars.emplace_back( & v_power_flow[ l ] , -eta );
+   }
+  }
+
+ // HVDC lines (maybe hyperarcs)
+ if( ! f_NetworkData->is_DC() ) {
+  for( auto & l : f_NetworkData->get_HVDC_lines() ) {
+   if( start_line[ l ] == n )
+    vars.emplace_back( & v_power_flow[ l ] , 1.0 );
+
+   if( ! f_NetworkData->is_hypergraph() ) {
+    double eta = get_line_efficiency( l );
+    if( end_line[ l ] == n )
+     vars.emplace_back( & v_power_flow[ l ] , -eta );
+    }
+   else {
+    for( Index i = 0 ;
+         i < f_NetworkData->get_end_lines()[ l ].size() ; ++i ) {
+     if( f_NetworkData->get_end_lines()[ l ][ i ] == n ) {
+      double eta = get_line_efficiencies( l )[ i ];
+      vars.emplace_back( & v_power_flow[ l ] , -eta );
+      }
+     }
+    }
+   }
+  }
+
+ }  // end( DCNetworkBlock::node_balance_flows )
+
+/*--------------------------------------------------------------------------*/
+
+bool DCNetworkBlock::get_balance_constraint_coefficients( Index interval ,
+							  Index node ,
+							  bool reactive ,
+				      std::vector< InjectionTerm > & terms ,
+							  double & constant )
+ const
+{
+ if( ( ! f_balance_in_father ) || ( interval > 0 ) || reactive ||
+     ( node >= get_number_nodes() ) )
+  return( false );
+
+ // the KCL -S_n + flows = -D_n, solved for S_n: S_n = flows + D_n
+ terms.clear();
+ const_cast< DCNetworkBlock * >( this )->node_balance_flows( node , terms );
+ constant = v_ActiveDemand.empty() ? 0.0 : v_ActiveDemand[ node ];
+ return( true );
+
+ }  // end( DCNetworkBlock::get_balance_constraint_coefficients )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2141,6 +2184,14 @@ void DCNetworkBlock::change_active_demand_constraints(
  // a single node has no row holding the demand
  if( get_number_nodes() <= 1 )
   return;
+
+ // the demand is in the rows of the father, which updates them
+ if( f_balance_in_father ) {
+  if( f_balance_changed )
+   for( auto n : modified_nodes )
+    f_balance_changed( 0 , n , false );
+  return;
+  }
 
  switch( ftype ) {
   case( PTDF ):

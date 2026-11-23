@@ -248,6 +248,20 @@ void DesignNetworkBlock::check_data_consistency( void ) const
 /*----------------------- GENERATION METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+void DesignNetworkBlock::set_balance_in_father(
+		      std::function< void( Index , Index , bool ) > changed )
+{
+ NetworkBlock::set_balance_in_father( std::move( changed ) );
+ for( Index k = 0 ; k < v_Block.size() ; ++k )
+  static_cast< NetworkBlock * >( v_Block[ k ] )->set_balance_in_father(
+   [ this , k ]( Index , Index node , bool reactive ) {
+    if( f_balance_changed )
+     f_balance_changed( k , node , reactive );
+    } );
+ }  // end( DesignNetworkBlock::set_balance_in_father )
+
+/*--------------------------------------------------------------------------*/
+
 void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
 {
  if( variables_generated() )  // variables have already been generated
@@ -255,6 +269,12 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
  // generate abstract variables in all the sub-Block
  Block::generate_abstract_variables( stvv );
+
+ // the balance rows are in the father if they are for every sub-network
+ f_balance_in_father = f_balance_asked && ( ! v_Block.empty() );
+ for( auto * nb : v_Block )
+  if( ! static_cast< NetworkBlock * >( nb )->balance_in_father() )
+   f_balance_in_father = false;
 
  // Create design variables only for the selected ("designed") lines
  if( f_num_design_lines ) {

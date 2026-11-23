@@ -77,6 +77,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 #include <netcdf>
@@ -18924,6 +18925,245 @@ static void test_scale_design_guard( void )
 
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* The balance rows of an ACNetworkBlock and of an ECNetworkBlock in the
+ * father, asked by NetworkBlock::set_balance_in_father() before the
+ * abstract representation is generated: the network has neither node
+ * injections (the reactive ones of the AC included) nor their bounds nor
+ * its balance rows, get_balance_constraint_coefficients() gives each node
+ * injection as the other terms of its balance with their constant, the
+ * demand, and a change of the demand calls the father back with the
+ * interval and the node. That the values are those of the full model is
+ * checked by batch-ac and batch-ec, which compare the two. */
+
+static void test_balance_in_father_networks( void )
+{
+ auto ec_group = new_group( "EC" , true );
+ ec_group.putAtt( "type" , "ECNetworkBlock" );
+ auto I = ec_group.addDim( "NumberIntervals" , 2 );
+ auto N = ec_group.addDim( "NumberNodes" , 2 );
+ put( ec_group , "BuyPrice" , I , { 3 , 4 } );
+ put( ec_group , "SellPrice" , I , { 1 , 1 } );
+ put( ec_group , "PeakTariff" , 2 );
+ put( ec_group , "ActiveDemand" , { I , N } , { 5 , 6 , 7 , 8 } );
+
+ for( const bool ac : { true , false } ) {
+  const std::string what = std::string( "balance in the father, " ) +
+			   ( ac ? "ACNetworkBlock" : "ECNetworkBlock" );
+  try {
+   std::unique_ptr< NetworkBlock > nb( dynamic_cast< NetworkBlock * >(
+	      Block::new_Block( ac ? write_AC_line( { } ) : ec_group ) ) );
+   if( ! nb ) {
+    check( false , what + ": not read" );
+    continue;
+    }
+   std::vector< std::tuple< Index , Index , bool > > calls;
+   nb->set_balance_in_father( [ & ]( Index i , Index n , bool r ) {
+    calls.emplace_back( i , n , r );
+    } );
+   generate_all( nb.get() );
+
+   check( nb->balance_in_father() , what + ": not accepted" );
+   check( ( ! nb->get_node_injection( 0 ) ) &&
+	  ( ! nb->get_reactive_node_injection( 0 ) ) &&
+	  ( nb->get_node_injection_bounds().num_elements() == 0 ) ,
+	  what + ": the node injections or their bounds are there" );
+   const std::string rows = ac ? "AC_power_flow_injection"
+			       : "Power_Balance_Const_Network";
+   check( ! nb->get_static_constraint_v< FRowConstraint >( rows ) &&
+	  ! nb->get_static_constraint< FRowConstraint , 2 >( rows ) ,
+	  what + ": the balance rows are there" );
+   if( ac )
+    check( static_cast< ACNetworkBlock * >( nb.get()
+		      )->get_reactive_node_injection_bounds().empty() ,
+	   what + ": the bounds of the reactive injections are there" );
+
+   // node 1 of the AC: W_11 and the two lines, line 0 ending there and
+   // line 1 starting there, with coefficient 1 (the scaling factor is 1),
+   // demand 2 and reactive demand 0.5; node 1 at interval 1 of the EC:
+   // P^+ - P^-, demand 8
+   std::vector< NetworkBlock::InjectionTerm > terms;
+   double h = 0;
+   bool ok = nb->get_balance_constraint_coefficients( ac ? 0 : 1 , 1 ,
+						      false , terms , h );
+   Index ones = 0;
+   for( const auto & term : terms )
+    ones += ( term.second == 1 );
+   check( ok && ( terms.size() == ( ac ? 3 : 2 ) ) &&
+	  ( ones == ( ac ? 2 : 1 ) ) && ( h == ( ac ? 2 : 8 ) ) ,
+	  what + ": the active node injection of node 1 is not the other "
+	  "terms of its balance and its demand" );
+   ok = nb->get_balance_constraint_coefficients( 0 , 1 , true , terms , h );
+   check( ac ? ( ok && ( terms.size() == 3 ) && ( h == 0.5 ) ) : ( ! ok ) ,
+	  what + ": the reactive node injection of node 1" );
+
+   std::vector< double > d = { 12 };
+   nb->set_active_demand( Block::MF_dbl_sp( d ) ,
+			  Subset( { ac ? Index( 2 ) : Index( 3 ) } ) , true ,
+			  eModBlck , eModBlck );
+   const auto want = ac ? std::make_tuple( Index( 0 ) , Index( 2 ) , false )
+			: std::make_tuple( Index( 1 ) , Index( 1 ) , false );
+   check( ( calls.size() == 1 ) && ( calls[ 0 ] == want ) ,
+	  what + ": a change of the demand does not call the father back "
+	  "with its interval and node" );
+   ok = nb->get_balance_constraint_coefficients( ac ? 0 : 1 , ac ? 2 : 1 ,
+						 false , terms , h );
+   check( ok && ( h == 12 ) , what + ": the constant is not the new "
+	  "demand" );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The balance rows of the network in UCBlock: a UCBlock of 3 nodes on a
+ * cycle of lines with susceptance, the line 0-1 congested, slack units of
+ * different costs at the nodes and a free intermittent unit, is solved as
+ * an LP with the DCNetworkBlock in the KIRCHHOFF formulation, first with
+ * its own node balances and then with the bit 0 of the
+ * SimpleConfiguration< int > of UCBlock, which puts them in the rows (1) of
+ * UCBlock. Then the network has no node injection and no node balance,
+ * and the value, the duals of the rows (1) (the prices of the nodes) and
+ * the node injections of the Solution of the network are the same, also
+ * after a change of the demand of a node set on the network. */
+
+static void test_balance_in_father( void )
+{
+ const auto sname = milp_solver();
+ if( sname.empty() ) {
+  std::cout << "balance in UCBlock: no :MILPSolver, skipped" << std::endl;
+  return;
+  }
+
+ auto g = new_group( "UC" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto T = g.addDim( "TimeHorizon" , 2 );
+ g.addDim( "NumberUnits" , 4 );
+ auto N = g.addDim( "NumberNodes" , 3 );
+ auto L = g.addDim( "NumberLines" , 3 );
+ auto G = g.addDim( "NumberElectricalGenerators" , 4 );
+ put_int( g , "StartLine" , L , { 0 , 1 , 0 } );
+ put_int( g , "EndLine" , L , { 1 , 2 , 2 } );
+ put( g , "LineSusceptance" , L , { 1 , 1 , 1 } );
+ put( g , "MinPowerFlow" , L , { -3 , -50 , -50 } );
+ put( g , "MaxPowerFlow" , L , { 3 , 50 , 50 } );
+ put( g , "ActivePowerDemand" , { N , T } , { 2 , 3 , 8 , 6 , 5 , 9 } );
+ put_int( g , "GeneratorNode" , G , { 0 , 1 , 2 , 2 } );
+ const std::vector< double > cost = { 10 , 30 , 1000 };
+ for( Index u = 0 ; u < 3 ; ++u ) {
+  auto ug = g.addGroup( "UnitBlock_" + std::to_string( u ) );
+  ug.putAtt( "type" , "SlackUnitBlock" );
+  put( ug , "MaxPower" , T , { 100 , 100 } );
+  put( ug , "ActivePowerCost" , T , { cost[ u ] , cost[ u ] } );
+  }
+ auto ug = g.addGroup( "UnitBlock_3" );
+ ug.putAtt( "type" , "IntermittentUnitBlock" );
+ put( ug , "MaxPower" , T , { 4 , 2 } );
+
+ struct Result {
+  double value = std::numeric_limits< double >::quiet_NaN();
+  double changed = std::numeric_limits< double >::quiet_NaN();
+  std::vector< double > duals , injections;
+  };
+
+ auto solve = [ & ]( bool in_father , Result & r ) {
+  std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+						 Block::new_Block( g ) ) );
+  if( ! uc )
+   return( std::string( "not read" ) );
+  SimpleConfiguration< int > father( 1 );
+  uc->generate_abstract_variables( in_father ? & father : nullptr );
+  uc->generate_abstract_constraints();
+  uc->generate_objective();
+
+  auto net = uc->get_network_block( 0 );
+  if( net->balance_in_father() != in_father )
+   return( std::string( "balance_in_father() is " ) +
+	   ( in_father ? "false" : "true" ) );
+  if( in_father &&
+      ( net->get_node_injection( 0 ) ||
+	net->get_static_constraint_v< FRowConstraint >(
+					       "KIRCHHOFF_node_balance" ) ) )
+   return( std::string( "the network still has its node injections or "
+			"its node balances" ) );
+
+  auto bsc = new BlockSolverConfig( 1 );
+  bsc->add_ComputeConfig( std::string( sname ) , nullptr );
+  bsc->apply( uc.get() );
+  bsc->clear();
+  auto slv = static_cast< CDASolver * >(
+				    uc->get_registered_solvers().front() );
+  const auto par = slv->int_par_str2idx( "intLogVerb" );
+  if( par < Inf< Solver::idx_type >() )
+   slv->set_par( par , 0 );
+
+  if( ( slv->compute( false ) != Solver::kOK ) ||
+      ( ! slv->has_dual_solution() ) )
+   return( std::string( "not solved" ) );
+  slv->get_var_solution();
+  slv->get_dual_solution();
+  r.value = slv->get_var_value();
+  const auto & rows = uc->get_node_injection_constraints();
+  for( Index t = 0 ; t < 2 ; ++t )
+   for( Index n = 0 ; n < 3 ; ++n )
+    r.duals.push_back( rows[ t ][ n ].get_dual() );
+  for( Index t = 0 ; t < 2 ; ++t ) {
+   auto sol = static_cast< NetworkBlockSolution * >(
+		    uc->get_network_block( t )->get_Solution( nullptr ) );
+   for( Index n = 0 ; n < 3 ; ++n )
+    r.injections.push_back( sol->get_node_injection()[ 0 ][ n ] );
+   delete sol;
+   }
+
+  // the demand of node 2 at the first instant, set on the network
+  std::vector< double > d = { 12 };
+  net->set_active_demand( Block::MF_dbl_sp( d ) , Subset( { 2 } ) , true ,
+			  eModBlck , eModBlck );
+  if( slv->compute( false ) != Solver::kOK )
+   return( std::string( "not solved after the change of the demand" ) );
+  r.changed = slv->get_var_value();
+  return( std::string() );
+  };
+
+ Result full , father;
+ for( auto [ in_father , r ] : { std::pair< bool , Result * >( false ,
+							       & full ) ,
+				 std::pair< bool , Result * >( true ,
+							       & father ) } ) {
+  const auto what = std::string( "balance " ) +
+		    ( in_father ? "in UCBlock" : "in the network" );
+  try {
+   const auto err = solve( in_father , *r );
+   check( err.empty() , what + ": " + err );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+
+ const std::string what = "balance in UCBlock";
+ check( close( full.value , father.value ) , what + ": value " +
+	str( father.value ) + " instead of " + str( full.value ) );
+ check( close( full.changed , father.changed ) , what + ", demand changed "
+	"on the network: value " + str( father.changed ) + " instead of " +
+	str( full.changed ) );
+ bool same = ( full.duals.size() == father.duals.size() ) &&
+	     ( full.injections.size() == father.injections.size() );
+ for( Index i = 0 ; same && ( i < full.duals.size() ) ; ++i )
+  same = close( full.duals[ i ] , father.duals[ i ] );
+ check( same , what + ": the duals of the rows (1) are not those of the "
+	"full model" );
+ same = full.injections.size() == father.injections.size();
+ for( Index i = 0 ; same && ( i < full.injections.size() ) ; ++i )
+  same = close( full.injections[ i ] , father.injections[ i ] );
+ check( same , what + ": the node injections of the Solution are not those "
+	"of the full model" );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( int argc , char ** argv )
 {
  // --power-limits: only the test of the power limits, with the options
@@ -19009,6 +19249,8 @@ int main( int argc , char ** argv )
   test_net_cost_solution( -1 , 0 );
   test_net_cost_solution( 0 , 0 );
   test_net_dual_prices();
+  test_balance_in_father();
+  test_balance_in_father_networks();
   test_net_no_lines();
   test_net_hyperarc_susceptance();
   test_RT_UCBlock();

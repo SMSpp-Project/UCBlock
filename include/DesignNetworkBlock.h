@@ -226,6 +226,35 @@ class DesignNetworkBlock : public NetworkBlock
 /** @name Reading the data of the NetworkBlock
  * @{ */
 
+ /// asks each sub-network to leave its balance rows to the father
+ /** The request is passed to the NetworkBlock of each interval, whose
+  * changes are passed back with its interval [see
+  * NetworkBlock::set_balance_in_father()]; balance_in_father() is true if
+  * the balance rows are in the father for every sub-network. */
+
+ void set_balance_in_father(
+	     std::function< void( Index , Index , bool ) > changed ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// the node injection of an interval, from its sub-network
+ /** What the NetworkBlock of \p interval gives for its only interval [see
+  * NetworkBlock::get_balance_constraint_coefficients()]. */
+
+ bool get_balance_constraint_coefficients( Index interval , Index node ,
+					   bool reactive ,
+				      std::vector< InjectionTerm > & terms ,
+					   double & constant ) const override {
+  // each sub-network answers for itself, since one may have accepted the
+  // request and another not [see set_balance_in_father()]
+  if( interval >= v_Block.size() )
+   return( false );
+  return( static_cast< const NetworkBlock * >( v_Block[ interval ]
+	   )->get_balance_constraint_coefficients( 0 , node , reactive ,
+						   terms , constant ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
  ColVariable * get_node_injection( Index interval = 0 ) override {
   if( v_Block.empty() )
    return( nullptr );

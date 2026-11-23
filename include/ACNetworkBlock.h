@@ -1007,6 +1007,22 @@ class ACNetworkData : public DCNetworkData
   return( reactive_node_injection_bounds_const );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// the node injection as a function of the Variable of the network
+ /** With the balance rows in the father [see
+  * NetworkBlock::set_balance_in_father()], the active (if \p reactive is
+  * false) or reactive balance of \p node solved for its node injection:
+  * the balance \f$ - C s_p - (Y_p / C) W_{pp} + \sum F = - C d_p \f$,
+  * with \f$ C \f$ the scaling factor of the rows and \f$ Y_p \f$ the
+  * conductance (or the susceptance) of the node, gives
+  * \f$ s_p = - (Y_p / C^2) W_{pp} + \sum F / C + d_p \f$; there is one
+  * interval. */
+
+ bool get_balance_constraint_coefficients( Index interval , Index node ,
+					   bool reactive ,
+				      std::vector< InjectionTerm > & terms ,
+					   double & constant ) const override;
+
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ACNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -1191,6 +1207,24 @@ class ACNetworkData : public DCNetworkData
  ACNetworkData * get_new_NetworkData( void ) const override {
   return( new ACNetworkData() );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// the father can always write the balances, one per node and part
+ /** The active and the reactive balance of a node are the only rows of its
+  * two node injections, whatever the formulation [see
+  * DCNetworkBlock::balance_allowed()]. */
+
+ bool balance_allowed( Index wf ) const override { return( true ); }
+
+/*--------------------------------------------------------------------------*/
+ /// appends to \p vars the terms of the balance of node \p p but s
+ /** The terms of the active (if \p reactive is false) or reactive balance
+  * of node \p p other than its node injection: the shunt admittance times
+  * \f$ W_{pp} \f$ and the flows of the lines at \p p in the two
+  * directions [see generate_abstract_constraints()]. */
+
+ void injection_balance_terms( Index p , bool reactive ,
+			       LinearFunction::v_coeff_pair & vars );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/

@@ -664,6 +664,26 @@ class UCBlock : public Block
  std::vector< std::string > expected_vars( void ) const override;
 
 /*--------------------------------------------------------------------------*/
+ /// generate the static Variable of UCBlock and of its sub-Block
+ /** The static Variable are those of the sub-Block, which this method has
+  * them generate. Before that, if \p stvv (or else the
+  * f_static_variables_Configuration of the BlockConfig) is a
+  * SimpleConfiguration< int > whose bit 0 is set, it asks each NetworkBlock
+  * to leave to UCBlock the rows in which its node injections enter [see
+  * NetworkBlock::set_balance_in_father()]: a NetworkBlock whose formulation
+  * allows it (e.g., DCNetworkBlock in the KIRCHHOFF formulation) then has
+  * no node injections, nor their bounds, and the rows (1) and (1') of
+  * UCBlock have, in place of the node injection, what it stands for in
+  * the network [see NetworkBlock::get_balance_constraint_coefficients()],
+  * i.e., they are the balances of the network themselves. This saves a
+  * column and a row per node and time instant, and the rows that a
+  * LagrangianDualSolver relaxes stay those of UCBlock. By default nothing
+  * of this happens. */
+
+ void generate_abstract_variables( Configuration * stvv = nullptr )
+  override;
+
+/*--------------------------------------------------------------------------*/
  /// generates the static constraints of the UCBlock
  /** This method generates the abstract constraints of the sub-Blocks and
   * then those of the UCBlock, i.e., the constraints that link the
@@ -2760,6 +2780,15 @@ class UCBlock : public Block
   * @param node_index The index of a node.
   *
   * @param demand The demand at the given node at the given time. */
+
+ /// updates the right-hand side of a balance row that holds a network
+ /** Called by the NetworkBlock \p n of carrier \p c, whose balance rows
+  * are in UCBlock [see generate_abstract_variables()], when the constant of
+  * the node injection of \p node at interval \p i (the reactive one if
+  * \p reactive) changes, i.e., when its demand changes. */
+
+ void update_balance_row( Index c , Index n , Index i , Index node ,
+			  bool reactive );
 
  void update_node_injection_constraints( Index time , Index node_index ,
                                          double demand );

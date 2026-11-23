@@ -136,7 +136,9 @@ void OTSNetworkBlock::generate_abstract_variables( Configuration * stvv )
  // Force Kirchhoff base formulation: OTS always needs angle variables.
  // We call NetworkBlock::generate_abstract_variables (grandparent), then
  // directly generate Kirchhoff variables, bypassing the parent's
- // formulation switch.
+ // formulation switch; the node injection of a node enters one row, which
+ // the father can write [see NetworkBlock::set_balance_in_father()]
+ f_balance_in_father = f_balance_asked && ( get_number_nodes() > 1 );
  NetworkBlock::generate_abstract_variables( stvv );
 
  ftype = KIRCHHOFF;

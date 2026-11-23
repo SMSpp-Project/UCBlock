@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the balance rows of the networks in `UCBlock`: with the bit 0 of a
+  `SimpleConfiguration< int >` as the static variables Configuration of
+  `UCBlock`, each `NetworkBlock` is asked by
+  `NetworkBlock::set_balance_in_father()` to leave to `UCBlock` the rows in
+  which its node injections enter, and one whose formulation allows it
+  (`DCNetworkBlock` in the KIRCHHOFF formulation, `OTSNetworkBlock`,
+  `ACNetworkBlock`, for the active and the reactive power, `ECNetworkBlock`,
+  and `DesignNetworkBlock` through its sub-networks) generates neither the
+  node injections nor their bounds nor those rows; the rows (1) and (1') of
+  `UCBlock` have, in place of the node injection, what
+  `NetworkBlock::get_balance_constraint_coefficients()` says it stands for,
+  the network calls `UCBlock` back when a demand changes, and
+  `NetworkBlockSolution` reads the node injections from the other Variable;
+  `NetworkBlockSolution::get_node_injection()` gives them; the unit test
+  compares the value, the duals of the rows (1) and the node injections of
+  a `UCBlock` with those of the full model, and checks the interface on an
+  `ACNetworkBlock` and on an `ECNetworkBlock`
+
 - the unit test checks that the nodes with no line of nonzero susceptance
   have no voltage angle, by the size of the group `voltage_angle` and of
   the reference angles

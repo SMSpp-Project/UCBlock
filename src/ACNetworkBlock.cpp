@@ -494,12 +494,15 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
 
- // the reactive node injection variables - - - - - - - - - - - - - - - - -
- v_reactive_node_injection.resize( number_nodes );
- for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
-  v_reactive_node_injection[ node_id ].set_type( ColVariable::kContinuous );
+ // the reactive node injection variables, none with the balance rows in
+ // the father [see NetworkBlock::set_balance_in_father()] - - - - - - - -
+ if( ! f_balance_in_father ) {
+  v_reactive_node_injection.resize( number_nodes );
+  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+   v_reactive_node_injection[ node_id ].set_type( ColVariable::kContinuous );
 
- add_static_variable( v_reactive_node_injection , "reactive_s_network" );
+  add_static_variable( v_reactive_node_injection , "reactive_s_network" );
+  }
 
  // complex power flow (real and imaginary part for both directions) - - - -
  /* S denotes the AC power for each line: it is a 2-dimensional vector
@@ -654,21 +657,25 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  generate_bound_constraints();
 
  // node injection bound constraints, free where no bound has been given
- // (as in a network that is not in a UCBlock) - - - - - - - - - - - - - - -
- reactive_node_injection_bounds_const.resize( number_nodes );
- for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-  reactive_node_injection_bounds_const[ node_id ].set_lhs(
-   v_MinReactiveNodeInjection.empty() ? -Inf< double >() :
-   v_MinReactiveNodeInjection[ node_id ] );
-  reactive_node_injection_bounds_const[ node_id ].set_rhs(
-   v_MaxReactiveNodeInjection.empty() ? Inf< double >() :
-   v_MaxReactiveNodeInjection[ node_id ] );
-  reactive_node_injection_bounds_const[ node_id ].set_variable(
-   & v_reactive_node_injection[ node_id ] );
-  }
+ // (as in a network that is not in a UCBlock), and none with the balance
+ // rows in the father, since they only serve to bound the node injection
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! f_balance_in_father ) {
+  reactive_node_injection_bounds_const.resize( number_nodes );
+  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+   reactive_node_injection_bounds_const[ node_id ].set_lhs(
+    v_MinReactiveNodeInjection.empty() ? -Inf< double >() :
+    v_MinReactiveNodeInjection[ node_id ] );
+   reactive_node_injection_bounds_const[ node_id ].set_rhs(
+    v_MaxReactiveNodeInjection.empty() ? Inf< double >() :
+    v_MaxReactiveNodeInjection[ node_id ] );
+   reactive_node_injection_bounds_const[ node_id ].set_variable(
+    & v_reactive_node_injection[ node_id ] );
+   }
 
- add_static_constraint( reactive_node_injection_bounds_const ,
-                        "Reactive_Node_Injection_Bound_Const_Network" );
+  add_static_constraint( reactive_node_injection_bounds_const ,
+                         "Reactive_Node_Injection_Bound_Const_Network" );
+  }
 
  // now start processing lines- - - - - - - - - - - - - - - - - - - - - - -
  const auto & start_line = f_NetworkData->get_start_line();
@@ -835,70 +842,41 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   }
 
  // ----- Active and reactive power conservation- - - - - - - - - - - - - -
- // shunt admittance
- SpCVec Ys = SpCVec( number_nodes );
- for( Index n = 0 ; n < number_nodes ; ++n ) {
-  double Gs = ND()->get_node_conductance().at( n ) / base_mva;
-  double Bs = ND()->get_node_susceptance().at( n ) / base_mva;
-  Ys.insert( n ) = Gs + 1i * Bs;
-  }
-
  /* The power conservation constraint can be written as
   *
   *   Supply - Demand = sum_{line_id in L cup L^R} power_flow[ line_id ]
   *
   * The complex matrix product <M,W>_F is then decomposed into a real part
-  * and an imaginary part. */
- v_power_flow_injection_const.resize( 2 * number_nodes );
+  * (the rows 0 to number_nodes - 1) and an imaginary part (the next
+  * number_nodes rows) [see injection_balance_terms()]; with the balance
+  * rows in the father there are none. */
+ if( ! f_balance_in_father ) {
+  v_power_flow_injection_const.resize( 2 * number_nodes );
 
- // real part of the power flow conservation- - - - - - - - - - - - - - - -
- for( Index p = 0 ; p < number_nodes ; ++p ) {
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_node_injection[ 0 ][ p ] , -1.0 * f_C_v_scal );
-  // why 0 and not the time step?
-  lfunc->add_variable( & v_sqrd_voltages[ p ] ,
-                       -Ys.coeff( p ).real() / f_C_v_scal );
-
-  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-   Index i = start_line[ line_id ];
-   Index j = end_line[ line_id ];
-
-   if( i == p )
-    lfunc->add_variable( & v_power_flow[ line_id ] , 1.0 );
-   if( j == p )
-    lfunc->add_variable( & v_power_flow[ number_lines + line_id ] , 1.0 );
+  for( Index p = 0 ; p < number_nodes ; ++p ) {
+   LinearFunction::v_coeff_pair vars;
+   vars.emplace_back( & v_node_injection[ 0 ][ p ] , -1.0 * f_C_v_scal );
+   injection_balance_terms( p , false , vars );
+   v_power_flow_injection_const[ p ].set_both(
+                                        -v_ActiveDemand[ p ] * f_C_v_scal );
+   v_power_flow_injection_const[ p ].set_function(
+                                    new LinearFunction( std::move( vars ) ) );
    }
-  v_power_flow_injection_const[ p ].set_both(
-   -v_ActiveDemand[ p ] * f_C_v_scal );
-  v_power_flow_injection_const[ p ].set_function( lfunc );
-  }
 
- // imaginary part of the power flow conservation - - - - - - - - - - - - -
- for( Index p = 0 ; p < number_nodes ; ++p ) {
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_reactive_node_injection[ p ] ,
-                       -1.0 * f_C_v_scal );
-  lfunc->add_variable( & v_sqrd_voltages[ p ] ,
-                       -Ys.coeff( p ).imag() / f_C_v_scal );
-
-  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-   Index i = start_line[ line_id ];
-   Index j = end_line[ line_id ];
-
-   if( i == p )
-    lfunc->add_variable( & v_reactive_power_flow[ line_id ] , 1.0 );
-   if( j == p )
-    lfunc->add_variable(
-     & v_reactive_power_flow[ number_lines + line_id ] , 1.0 );
+  for( Index p = 0 ; p < number_nodes ; ++p ) {
+   LinearFunction::v_coeff_pair vars;
+   vars.emplace_back( & v_reactive_node_injection[ p ] , -1.0 * f_C_v_scal );
+   injection_balance_terms( p , true , vars );
+   // no "ReactiveDemand" is no reactive demand
+   v_power_flow_injection_const[ number_nodes + p ].set_both(
+    v_ReactiveDemand.empty() ? 0.0 : -v_ReactiveDemand[ p ] * f_C_v_scal );
+   v_power_flow_injection_const[ number_nodes + p ].set_function(
+                                    new LinearFunction( std::move( vars ) ) );
    }
-  // no "ReactiveDemand" is no reactive demand
-  v_power_flow_injection_const[ number_nodes + p ].set_both(
-   v_ReactiveDemand.empty() ? 0.0 : -v_ReactiveDemand[ p ] * f_C_v_scal );
-  v_power_flow_injection_const[ number_nodes + p ].set_function( lfunc );
-  }
 
- add_static_constraint( v_power_flow_injection_const ,
-                        "AC_power_flow_injection" );
+  add_static_constraint( v_power_flow_injection_const ,
+                         "AC_power_flow_injection" );
+  }
 
  // ----- HVDC flow links - - - - - - - - - - - - - - - - - - - - - - - - -
  /* Since the lines have been duplicated, for DC ones we need to add the
@@ -1225,6 +1203,14 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 void ACNetworkBlock::change_active_demand_constraints(
                            c_Subset & modified_nodes , c_ModParam issueAMod )
 {
+ // the demand is in the rows of the father, which updates them
+ if( f_balance_in_father ) {
+  if( f_balance_changed )
+   for( auto n : modified_nodes )
+    f_balance_changed( 0 , n , false );
+  return;
+  }
+
  // the active balance of node n is the row n, the reactive one the row
  // get_number_nodes() + n; none exists with a single node
  if( v_power_flow_injection_const.empty() )
@@ -1240,6 +1226,59 @@ void ACNetworkBlock::change_active_demand_constraints(
  close_channel( par2chnl( nAM ) );
 
  }  // end( ACNetworkBlock::change_active_demand_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkBlock::injection_balance_terms( Index p , bool reactive ,
+				      LinearFunction::v_coeff_pair & vars )
+{
+ // the shunt admittance of node p, and the flows of the lines at p in the
+ // two directions, the reactive ones for the imaginary part
+ const double base_mva = ND()->get_baseMVA();
+ const double shunt = reactive
+  ? ND()->get_node_susceptance().at( p ) / base_mva
+  : ND()->get_node_conductance().at( p ) / base_mva;
+ vars.emplace_back( & v_sqrd_voltages[ p ] , - shunt / f_C_v_scal );
+
+ const auto & start_line = f_NetworkData->get_start_line();
+ const auto & end_line = f_NetworkData->get_end_line();
+ const auto number_lines = get_number_lines();
+ auto & flow = reactive ? v_reactive_power_flow : v_power_flow;
+ for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+  if( start_line[ line_id ] == p )
+   vars.emplace_back( & flow[ line_id ] , 1.0 );
+  if( end_line[ line_id ] == p )
+   vars.emplace_back( & flow[ number_lines + line_id ] , 1.0 );
+  }
+ }  // end( ACNetworkBlock::injection_balance_terms )
+
+/*--------------------------------------------------------------------------*/
+
+bool ACNetworkBlock::get_balance_constraint_coefficients( Index interval ,
+							  Index node ,
+							  bool reactive ,
+				      std::vector< InjectionTerm > & terms ,
+							  double & constant )
+ const
+{
+ if( ( ! f_balance_in_father ) || ( interval > 0 ) ||
+     ( node >= get_number_nodes() ) )
+  return( false );
+
+ // the balance - C s + terms = - C d, solved for s: s = terms / C + d
+ terms.clear();
+ const_cast< ACNetworkBlock * >( this )->injection_balance_terms( node ,
+								  reactive ,
+								  terms );
+ for( auto & term : terms )
+  term.second /= f_C_v_scal;
+ if( reactive )
+  constant = v_ReactiveDemand.empty() ? 0.0 : v_ReactiveDemand[ node ];
+ else
+  constant = v_ActiveDemand.empty() ? 0.0 : v_ActiveDemand[ node ];
+ return( true );
+
+ }  // end( ACNetworkBlock::get_balance_constraint_coefficients )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1806,10 +1845,23 @@ void ACNetworkBlockSolution::read( const Block * block )
    "ACNetworkBlockSolution::read: block is not a ACNetworkBlock" ) );
 
  if( ! v_node_injection_reactive.empty() ) {
-  // read the (reactive) node injection variables - - - - - - - - - - - - -
-  auto RNI = ACNB->get_const_reactive_node_injection();
-  for( Index n = 0 ; n < f_number_nodes ; ++n )
-   v_node_injection_reactive[ n ] = ( *( RNI++ ) ).get_value();
+  // read the (reactive) node injection variables, or, with the balance
+  // rows in the father, the value of what they stand for - - - - - - - - -
+  if( ACNB->balance_in_father() ) {
+   std::vector< NetworkBlock::InjectionTerm > terms;
+   double h;
+   for( Index n = 0 ; n < f_number_nodes ; ++n ) {
+    ACNB->get_balance_constraint_coefficients( 0 , n , true , terms , h );
+    for( const auto & [ var , g ] : terms )
+     h += g * var->get_value();
+    v_node_injection_reactive[ n ] = h;
+    }
+   }
+  else {
+   auto RNI = ACNB->get_const_reactive_node_injection();
+   for( Index n = 0 ; n < f_number_nodes ; ++n )
+    v_node_injection_reactive[ n ] = ( *( RNI++ ) ).get_value();
+   }
   }
 
  if( ! v_reactive_flow_from.empty() ) {
@@ -1834,7 +1886,8 @@ void ACNetworkBlockSolution::write( Block * block )
   throw( std::invalid_argument(
    "ACNetworkBlockSolution::write: block is not an ACNetworkBlock" ) );
 
- if( ! v_node_injection_reactive.empty() ) {
+ if( ( ! v_node_injection_reactive.empty() ) &&
+     ( ! ACNB->balance_in_father() ) ) {
   // write the (reactive) node injection variables- - - - - - - - - - - - -
   auto RNI = ACNB->get_reactive_node_injection();
   for( Index n = 0 ; n < f_number_nodes ; ++n )

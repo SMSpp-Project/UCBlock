@@ -205,6 +205,10 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
 
+ // the node injection of a node at an interval enters only its power
+ // balance, which the father can write [see set_balance_in_father()]
+ f_balance_in_father = f_balance_asked && ( get_number_nodes() > 1 );
+
  NetworkBlock::generate_abstract_variables( stvv );
 
  const auto number_nodes = get_number_nodes();
@@ -291,29 +295,33 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  // set the per-node power balance, i.e.:
  //
  //    P^+ - P^- - node_injection = - active_demand            for all u, t
+ //
+ // unless the father writes it [see get_balance_constraint_coefficients()]
 
- power_balance_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ number_nodes ][ number_intervals ] );
+ if( ! f_balance_in_father ) {
+  power_balance_const.resize(
+   boost::multi_array< FRowConstraint , 2 >::extent_gen()
+   [ number_nodes ][ number_intervals ] );
 
- for( Index i = 0 ; i < number_intervals ; ++i )
+  for( Index i = 0 ; i < number_intervals ; ++i )
 
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-   vars.push_back( std::make_pair( &v_power_injection[ i ][ node_id ] ,
-                                   1.0 ) );
-   vars.push_back( std::make_pair( &v_power_absorption[ i ][ node_id ] ,
-                                   -1.0 ) );
-   vars.push_back( std::make_pair( &v_node_injection[ i ][ node_id ] ,
-				   -1.0 ) );
+    vars.push_back( std::make_pair( &v_power_injection[ i ][ node_id ] ,
+                                    1.0 ) );
+    vars.push_back( std::make_pair( &v_power_absorption[ i ][ node_id ] ,
+                                    -1.0 ) );
+    vars.push_back( std::make_pair( &v_node_injection[ i ][ node_id ] ,
+ 				   -1.0 ) );
 
-   power_balance_const[ node_id ][ i ].set_both(
-    -v_ActiveDemand[ i ][ node_id ] );
-   power_balance_const[ node_id ][ i ].set_function(
-    new LinearFunction( std::move( vars ) ) );
-  }
+    power_balance_const[ node_id ][ i ].set_both(
+     -v_ActiveDemand[ i ][ node_id ] );
+    power_balance_const[ node_id ][ i ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
 
- add_static_constraint( power_balance_const , "Power_Balance_Const_Network" );
+  add_static_constraint( power_balance_const , "Power_Balance_Const_Network" );
+ }
 
  // tie the actual aggregate public-market exchange to the declared-dispatch
  // (day-ahead bid) plus the squilibrium, i.e.:
@@ -514,6 +522,31 @@ void ECNetworkBlock::generate_objective( Configuration * objc )
 /*----------------- METHODS FOR CHECKING THE ECNetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 
+bool ECNetworkBlock::get_balance_constraint_coefficients( Index interval ,
+							  Index node ,
+							  bool reactive ,
+				      std::vector< InjectionTerm > & terms ,
+							  double & constant )
+ const
+{
+ if( ( ! f_balance_in_father ) || reactive ||
+     ( interval >= get_number_intervals() ) ||
+     ( node >= get_number_nodes() ) )
+  return( false );
+
+ // the power balance P^+ - P^- - s = - D, solved for s: s = P^+ - P^- + D
+ auto self = const_cast< ECNetworkBlock * >( this );
+ terms.clear();
+ terms.emplace_back( & self->v_power_injection[ interval ][ node ] , 1.0 );
+ terms.emplace_back( & self->v_power_absorption[ interval ][ node ] , -1.0 );
+ constant = v_ActiveDemand.empty() ? 0.0
+                                   : v_ActiveDemand[ interval ][ node ];
+ return( true );
+
+ }  // end( ECNetworkBlock::get_balance_constraint_coefficients )
+
+/*--------------------------------------------------------------------------*/
+
 bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
  // Retrieve the tolerance and the type of violation.
@@ -695,8 +728,14 @@ void ECNetworkBlock::set_active_demand( MF_dbl_sp values ,
    Index t = i / get_number_nodes();
    Index n = i % get_number_nodes();
 
-   power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
-                                           nAM );
+   // the demand is in the rows of the father, which updates them
+   if( f_balance_in_father ) {
+    if( f_balance_changed )
+     f_balance_changed( t , n , false );
+    }
+   else
+    power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
+                                            nAM );
   }
  
       close_channel( par2chnl( nAM ) );
@@ -766,8 +805,14 @@ void ECNetworkBlock::set_active_demand( MF_dbl_sp values ,
     Index t = i / get_number_nodes();
     Index n = i % get_number_nodes();
 
-    power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
-                                            nAM );
+    // the demand is in the rows of the father, which updates them
+    if( f_balance_in_father ) {
+     if( f_balance_changed )
+      f_balance_changed( t , n , false );
+     }
+    else
+     power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
+                                             nAM );
    }
   
    close_channel( par2chnl( nAM ) );

@@ -46,6 +46,8 @@
 
 #include "UnitBlock.h"
 
+#include <functional>
+
 #include "FRowConstraint.h"
 
 #include "OneVarConstraint.h"
@@ -895,6 +897,64 @@ class NetworkBlock : public Block
   return( node_injection_bounds_const );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// a term of a node injection as a function of the network Variable
+ using InjectionTerm = std::pair< ColVariable * , double >;
+
+/*--------------------------------------------------------------------------*/
+ /// asks that the father write the balance rows of the node injections
+ /** To be called before generate_abstract_variables() by the Block that
+  * the node injections link this NetworkBlock to (e.g., UCBlock), which
+  * then writes itself the rows in which each node injection enters,
+  * with the node injection replaced by what
+  * get_balance_constraint_coefficients() gives. A NetworkBlock whose
+  * formulation allows it, i.e., one whose node injection of a node at an
+  * interval enters exactly one row, linearly, then generates neither the
+  * node injections (the active and the reactive ones) nor their bounds nor
+  * the rows in which they enter [see balance_in_father()]; the others
+  * ignore the request.
+  *
+  * Afterwards, \p changed is called with the interval and the node whose
+  * get_balance_constraint_coefficients() has changed its constant, i.e.,
+  * whenever the demand of that node at that interval changes, the active
+  * one if the bool is false and the reactive one if it is true, so that
+  * the father updates its row. */
+
+ virtual void set_balance_in_father(
+		      std::function< void( Index , Index , bool ) > changed ) {
+  f_balance_asked = true;
+  f_balance_changed = std::move( changed );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tells whether the balance rows of the node injections are in the father
+ /** True if set_balance_in_father() has been called and the formulation of
+  * this NetworkBlock allows it, which is known once the Variable are
+  * generated: then there are no node injection Variable, and
+  * get_balance_constraint_coefficients() gives them. */
+
+ bool balance_in_father( void ) const { return( f_balance_in_father ); }
+
+/*--------------------------------------------------------------------------*/
+ /// the node injection as a function of the Variable of the NetworkBlock
+ /** If balance_in_father(), writes in \p terms the pairs ( v_j , g_j ) and
+  * in \p constant the h such that the node injection of \p node at
+  * \p interval (the reactive one if \p reactive) is
+  * \f[
+  *   s = \sum_j g_j v_j + h \; ,
+  * \f]
+  * i.e., the row in which it enters, solved for it: the father writes
+  * its row with this in place of s. Returns false, and writes nothing, if
+  * not balance_in_father() (as this default implementation does). */
+
+ virtual bool get_balance_constraint_coefficients( Index interval ,
+						   Index node ,
+						   bool reactive ,
+				      std::vector< InjectionTerm > & terms ,
+						   double & constant ) const {
+  return( false );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1086,6 +1146,17 @@ class NetworkBlock : public Block
 
  /// the node injection bound constraints
  MABC node_injection_bounds_const;
+
+/*------------------------- balance rows in the father ---------------------*/
+
+ /// whether set_balance_in_father() has been called
+ bool f_balance_asked = false;
+
+ /// whether the balance rows are in the father [see balance_in_father()]
+ bool f_balance_in_father = false;
+
+ /// called when a constant of get_balance_constraint_coefficients() changes
+ std::function< void( Index , Index , bool ) > f_balance_changed;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -1335,6 +1406,16 @@ class NetworkBlockSolution : public Solution
  ///< returns the number of nodes covered by this NetworkBlockSolution
 
  Index get_number_nodes( void ) const { return( f_number_nodes ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the node injections, [ t ][ i ] for node i at interval t
+ /** Empty if the Solution does not save them; with the balance rows in the
+  * father they are what the node injections stand for [see
+  * NetworkBlock::get_balance_constraint_coefficients()]. */
+
+ const boost::multi_array< double , 2 > & get_node_injection( void ) const {
+  return( v_node_injection );
+  }
 
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF A NetworkBlockSolution ------*/
 

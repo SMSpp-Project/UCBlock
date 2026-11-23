@@ -83,7 +83,9 @@ void NetworkBlock::generate_abstract_variables( Configuration * stvv )
  const auto nn = get_number_nodes();
  const auto ni = get_number_intervals();
 
- if( nn > 1 ) {
+ // no node injection if the father writes the balance rows with what it
+ // stands for [see set_balance_in_father()]
+ if( ( nn > 1 ) && ( ! f_balance_in_father ) ) {
   // the node injection variables
   v_node_injection.resize( boost::extents[ ni ][ nn ] );
   for( Index t = 0 ; t < ni ; ++t )
@@ -99,6 +101,12 @@ void NetworkBlock::generate_abstract_constraints( Configuration * stcc )
 {
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
+
+ // the bounds of the node injections only serve to bound them, and there
+ // are none with the balance rows in the father [see
+ // set_balance_in_father()]
+ if( f_balance_in_father )
+  return;
 
  const auto nn = get_number_nodes();
  const auto ni = get_number_intervals();
@@ -327,13 +335,28 @@ void NetworkBlockSolution::read( const Block * block )
  f_number_nodes = NB->get_number_nodes();
  f_number_intervals = NB->get_number_intervals();
 
- if( ! v_node_injection.empty() )
-  // read the node injection variables - - - - - - - - - - - - - - - - - - -
+ if( ! v_node_injection.empty() ) {
+  // read the node injection variables, or, at an interval whose balance
+  // rows are in the father, the value of what they stand for [see
+  // NetworkBlock::get_balance_constraint_coefficients()] - - - - - - - - -
+  std::vector< NetworkBlock::InjectionTerm > terms;
+  double h;
   for( Index t = 0 ; t < f_number_intervals ; ++t ) {
-   auto NIt = NB->get_const_node_injection( t );
-   for( Index i = 0 ; i < f_number_nodes ; ++i )
-    v_node_injection[ t ][ i ] = NIt[ i ].get_value();
+   if( auto NIt = NB->get_const_node_injection( t ) )
+    for( Index i = 0 ; i < f_number_nodes ; ++i )
+     v_node_injection[ t ][ i ] = NIt[ i ].get_value();
+   else
+    for( Index i = 0 ; i < f_number_nodes ; ++i ) {
+     if( ! NB->get_balance_constraint_coefficients( t , i , false , terms ,
+						     h ) )
+      throw( std::logic_error( "NetworkBlockSolution::read: no node "
+			       "injection and no balance in the father" ) );
+     for( const auto & [ var , g ] : terms )
+      h += g * var->get_value();
+     v_node_injection[ t ][ i ] = h;
+     }
    }
+  }
 
  }  // end( NetworkBlockSolution::read )
 
@@ -354,13 +377,14 @@ void NetworkBlockSolution::write( Block * block )
   throw( std::invalid_argument(
 	      "NetworkBlockSolution::write: inconsistent instants number" ) );
 
+ // with the balance rows in the father there is no node injection Variable
+ // to write, its value being that of the other Variable
  if( ! v_node_injection.empty() )
   // write the node injection variables- - - - - - - - - - - - - - - - - - -
-  for( Index t = 0 ; t < f_number_intervals ; ++t ) {
-   auto NIt = NB->get_node_injection( t );
-   for( Index i = 0 ; i < f_number_nodes ; ++i )
-    NIt[ i ].set_value( v_node_injection[ t ][ i ] );
-   }
+  for( Index t = 0 ; t < f_number_intervals ; ++t )
+   if( auto NIt = NB->get_node_injection( t ) )
+    for( Index i = 0 ; i < f_number_nodes ; ++i )
+     NIt[ i ].set_value( v_node_injection[ t ][ i ] );
 
  }  // end( NetworkBlockSolution::write )
 

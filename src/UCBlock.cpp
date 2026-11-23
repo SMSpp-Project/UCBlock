@@ -1344,9 +1344,21 @@ void UCBlock::balance_terms( Index c , Index t , Index node , bool reactive ,
    i = ii;
    }
 
-  auto injection = reactive ? nbi->get_reactive_node_injection( i )
-                            : nbi->get_node_injection( i );
-  terms.push_back( { &injection[ node ] , -1 , 0 , Inf< Index >() } );
+  // with the balance rows in UCBlock, what the node injection stands for
+  // in the network [see generate_abstract_variables()]
+  std::vector< NetworkBlock::InjectionTerm > net;
+  double h;
+  if( nbi->get_balance_constraint_coefficients( i , node , reactive , net ,
+						h ) ) {
+   for( const auto & [ var , g ] : net )
+    terms.push_back( { var , -g , 0 , Inf< Index >() } );
+   rhs += h;
+   }
+  else {
+   auto injection = reactive ? nbi->get_reactive_node_injection( i )
+                             : nbi->get_node_injection( i );
+   terms.push_back( { &injection[ node ] , -1 , 0 , Inf< Index >() } );
+   }
   }
  else  // one node: the demand is the right-hand side
   if( c == 0 )
@@ -1462,6 +1474,55 @@ std::vector< std::string > UCBlock::expected_vars( void ) const {
 
  return( ret );
  }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::generate_abstract_variables( Configuration * stvv )
+{
+ if( ( ! stvv ) && f_BlockConfig )
+  stvv = f_BlockConfig->f_static_variables_Configuration;
+
+ // the balance rows of the networks in UCBlock, if asked: each NetworkBlock
+ // calls back when the constant of one of its node injections changes
+ if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )
+  if( sci->f_value & 1 )
+   for( Index c = 0 ; c < get_number_carriers() ; ++c ) {
+    const auto & networks = c ? v_carrier[ c ].v_network_blocks
+                              : v_network_blocks;
+    for( Index n = 0 ; n < networks.size() ; ++n )
+     networks[ n ]->set_balance_in_father(
+      [ this , c , n ]( Index i , Index node , bool reactive ) {
+       update_balance_row( c , n , i , node , reactive );
+       } );
+    }
+
+ Block::generate_abstract_variables( stvv );
+
+ }  // end( UCBlock::generate_abstract_variables )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::update_balance_row( Index c , Index n , Index i , Index node ,
+				  bool reactive )
+{
+ if( ! constraints_generated() )
+  return;  // the rows will be written with the new constant
+
+ const auto & of_instant = c ? v_carrier[ c ].v_network_of_instant
+                             : v_network_of_instant;
+ auto & rows = c ? v_carrier_balance_Const[ c ]
+                 : ( reactive ? v_reactive_node_injection_Const
+                              : v_node_injection_Const );
+
+ std::vector< BalanceTerm > terms;
+ double rhs;
+ for( Index t = 0 ; t < of_instant.size() ; ++t )
+  if( ( of_instant[ t ].first == n ) && ( of_instant[ t ].second == i ) ) {
+   balance_terms( c , t , node , reactive , terms , rhs );
+   rows[ t ][ node ].set_both( rhs , eNoBlck );
+   }
+
+ }  // end( UCBlock::update_balance_row )
 
 /*--------------------------------------------------------------------------*/
 
