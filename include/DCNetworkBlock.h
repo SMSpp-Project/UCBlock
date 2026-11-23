@@ -211,7 +211,8 @@ namespace SMSpp_di_unipi_it
  * One can write the network in three formulations, which are chosen when the
  * variables are generated (see generate_abstract_variables()) and whose rows
  * are given in generate_abstract_constraints(). First, the KIRCHHOFF one (the
- * default) has the angle \f$ \theta_n \f$ of each node, the relation \f$ F_l
+ * default) has the angle \f$ \theta_n \f$ of each node that is an end of a line
+ * in \f$ \mathcal{L}^{S} \f$, the relation \f$ F_l
  * = \mathfrak{S}_l ( \theta_{s(l)} - \theta_{e(l)} ) \f$ for each
  * \f$ l \in \mathcal{L}^{S} \f$, the balance (B) at each node and one fixed
  * angle per component. Second, the PTDF one defines the flows of the lines in
@@ -1243,8 +1244,9 @@ class DCNetworkData : public NetworkData
   *   "cycle_flow_network", see get_cycle_flow());
   *
   * - in the KIRCHHOFF formulation, if some line has a nonzero susceptance,
-  *   the voltage angles \f$ \theta_n \f$, one for each node (the group
-  *   "voltage_angle").
+  *   the voltage angles \f$ \theta_n \f$, one for each node that is an end of
+  *   a line with nonzero susceptance (the group "voltage_angle", see
+  *   get_voltage_angle()).
   *
   * All of them are continuous and free, their bounds being rows or bounds
   * of generate_abstract_constraints(). The formulation is given by an int
@@ -1617,8 +1619,9 @@ class DCNetworkData : public NetworkData
  /** Fixes to 0 one voltage angle in each component of the lines with
   * nonzero susceptance, i.e., (13) of generate_abstract_constraints():
   * that of "ReferenceNode" in its component and that of the node of lowest
-  * index in each of the others. Nothing is generated for a pure HVDC
-  * network, which has no angle. It is called by
+  * index in each of the others. A node that is the end of no such line is a
+  * component of its own with no angle, and nothing is generated for it, nor
+  * for a pure HVDC network. It is called by
   * generate_KIRCHHOFF_constraints() and by the derived classes that use
   * the angles. */
 
@@ -2599,6 +2602,20 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the voltage angle of node \p node
+ /** The voltage angle \f$ \theta_n \f$ of the KIRCHHOFF formulation exists
+  * only for a node that is an end of a line with nonzero susceptance: for
+  * any other node, as for any node in the other formulations and in a pure
+  * HVDC network, this returns nullptr. */
+
+ ColVariable * get_voltage_angle( Index node ) {
+  if( ( node >= v_voltage_angle_index.size() ) ||
+      ( v_voltage_angle_index[ node ] == Inf< Index >() ) )
+   return( nullptr );
+  return( &v_voltage_angle[ v_voltage_angle_index[ node ] ] );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// kappa times the capacity of the lines in \p subset
  /** Writes the kappa of the lines as DCNetworkBlock::set_kappa() does,
   * whatever the class of this Block, registered in the methods factory as
@@ -2756,7 +2773,13 @@ class DCNetworkData : public NetworkData
  std::vector< ColVariable > v_cycle_flow;
 
  /// the voltage angle variables (Kirchhoff formulation)
+ /** One for each node that is an end of a line with nonzero susceptance, in
+  * the order of the nodes: see get_voltage_angle(). */
  std::vector< ColVariable > v_voltage_angle;
+
+ /// the index in v_voltage_angle of the angle of each node
+ /** Inf< Index >() for a node that has none. */
+ std::vector< Index > v_voltage_angle_index;
 
  /// the auxiliary network cost variable
  std::vector< ColVariable > v_auxiliary_variable;

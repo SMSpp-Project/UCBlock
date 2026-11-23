@@ -497,8 +497,8 @@ void OTSNetworkBlock::generate_OTS_Standard_constraints( void )
 
   // upper: F_l - B_l*theta_from + B_l*theta_to + M_l*z_l <= M_l
   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-  vars.emplace_back( & v_voltage_angle[ start_line[ l ] ] , -B_l );
-  vars.emplace_back( & v_voltage_angle[ end_line[ l ] ] , B_l );
+  vars.emplace_back( get_voltage_angle( start_line[ l ] ) , -B_l );
+  vars.emplace_back( get_voltage_angle( end_line[ l ] ) , B_l );
   vars.emplace_back( & v_switching[ idx ] , M_l );
   v_OTS_KVL_upper[ idx ].set_lhs( -Inf< double >() );
   v_OTS_KVL_upper[ idx ].set_rhs( M_l );
@@ -507,8 +507,8 @@ void OTSNetworkBlock::generate_OTS_Standard_constraints( void )
 
   // lower: F_l - B_l*theta_from + B_l*theta_to - M_l*z_l >= -M_l
   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-  vars.emplace_back( & v_voltage_angle[ start_line[ l ] ] , -B_l );
-  vars.emplace_back( & v_voltage_angle[ end_line[ l ] ] , B_l );
+  vars.emplace_back( get_voltage_angle( start_line[ l ] ) , -B_l );
+  vars.emplace_back( get_voltage_angle( end_line[ l ] ) , B_l );
   vars.emplace_back( & v_switching[ idx ] , -M_l );
   v_OTS_KVL_lower[ idx ].set_lhs( -M_l );
   v_OTS_KVL_lower[ idx ].set_rhs( Inf< double >() );
@@ -555,8 +555,8 @@ void OTSNetworkBlock::generate_OTS_Directional_constraints( void )
 
   // upper: F_l - B_l*theta_from + B_l*theta_to + M_l*z+ + M_l*z- <= M_l
   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-  vars.emplace_back( & v_voltage_angle[ start_line[ l ] ] , -B_l );
-  vars.emplace_back( & v_voltage_angle[ end_line[ l ] ] , B_l );
+  vars.emplace_back( get_voltage_angle( start_line[ l ] ) , -B_l );
+  vars.emplace_back( get_voltage_angle( end_line[ l ] ) , B_l );
   vars.emplace_back( & v_switching_pos[ idx ] , M_l );
   vars.emplace_back( & v_switching_neg[ idx ] , M_l );
   v_OTS_KVL_upper[ idx ].set_lhs( -Inf< double >() );
@@ -566,8 +566,8 @@ void OTSNetworkBlock::generate_OTS_Directional_constraints( void )
 
   // lower: F_l - B_l*theta_from + B_l*theta_to - M_l*z+ - M_l*z- >= -M_l
   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-  vars.emplace_back( & v_voltage_angle[ start_line[ l ] ] , -B_l );
-  vars.emplace_back( & v_voltage_angle[ end_line[ l ] ] , B_l );
+  vars.emplace_back( get_voltage_angle( start_line[ l ] ) , -B_l );
+  vars.emplace_back( get_voltage_angle( end_line[ l ] ) , B_l );
   vars.emplace_back( & v_switching_pos[ idx ] , -M_l );
   vars.emplace_back( & v_switching_neg[ idx ] , -M_l );
   v_OTS_KVL_lower[ idx ].set_lhs( -M_l );
@@ -628,8 +628,8 @@ void OTSNetworkBlock::generate_OTS_Elastic_constraints( void )
 
   // upper: F_l - B_l*th_from + B_l*th_to + aM*z_l + bM*z1_l <= M_l
   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-  vars.emplace_back( & v_voltage_angle[ start_line[ l ] ] , -B_l );
-  vars.emplace_back( & v_voltage_angle[ end_line[ l ] ] , B_l );
+  vars.emplace_back( get_voltage_angle( start_line[ l ] ) , -B_l );
+  vars.emplace_back( get_voltage_angle( end_line[ l ] ) , B_l );
   vars.emplace_back( & v_switching[ idx ] , aM );
   vars.emplace_back( & v_elastic[ idx ] , bM );
   v_OTS_KVL_upper[ idx ].set_lhs( -Inf< double >() );
@@ -639,8 +639,8 @@ void OTSNetworkBlock::generate_OTS_Elastic_constraints( void )
 
   // lower: F_l - B_l*th_from + B_l*th_to - aM*z_l - bM*z1_l >= -M_l
   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-  vars.emplace_back( & v_voltage_angle[ start_line[ l ] ] , -B_l );
-  vars.emplace_back( & v_voltage_angle[ end_line[ l ] ] , B_l );
+  vars.emplace_back( get_voltage_angle( start_line[ l ] ) , -B_l );
+  vars.emplace_back( get_voltage_angle( end_line[ l ] ) , B_l );
   vars.emplace_back( & v_switching[ idx ] , -aM );
   vars.emplace_back( & v_elastic[ idx ] , -bM );
   v_OTS_KVL_lower[ idx ].set_lhs( -M_l );
@@ -702,8 +702,8 @@ void OTSNetworkBlock::generate_OTS_ElasticDirectional_constraints( void )
 
   // upper: F_l - B_l*th_from + B_l*th_to + aM*z+ + aM*z- + bM*z1 <= M_l
   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-  vars.emplace_back( & v_voltage_angle[ start_line[ l ] ] , -B_l );
-  vars.emplace_back( & v_voltage_angle[ end_line[ l ] ] , B_l );
+  vars.emplace_back( get_voltage_angle( start_line[ l ] ) , -B_l );
+  vars.emplace_back( get_voltage_angle( end_line[ l ] ) , B_l );
   vars.emplace_back( & v_switching_pos[ idx ] , aM );
   vars.emplace_back( & v_switching_neg[ idx ] , aM );
   vars.emplace_back( & v_elastic[ idx ] , bM );
@@ -714,8 +714,8 @@ void OTSNetworkBlock::generate_OTS_ElasticDirectional_constraints( void )
 
   // lower: F_l - B_l*th_from + B_l*th_to - aM*z+ - aM*z- - bM*z1 >= -M_l
   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-  vars.emplace_back( & v_voltage_angle[ start_line[ l ] ] , -B_l );
-  vars.emplace_back( & v_voltage_angle[ end_line[ l ] ] , B_l );
+  vars.emplace_back( get_voltage_angle( start_line[ l ] ) , -B_l );
+  vars.emplace_back( get_voltage_angle( end_line[ l ] ) , B_l );
   vars.emplace_back( & v_switching_pos[ idx ] , -aM );
   vars.emplace_back( & v_switching_neg[ idx ] , -aM );
   vars.emplace_back( & v_elastic[ idx ] , -bM );

@@ -915,7 +915,8 @@ void DCNetworkBlock::generate_KIRCHHOFF_variables( void )
 {
  /** The Kirchhoff formulation uses:
   *  - power flow variables F_l for each line (same as PTDF / CYCLE)
-  *  - voltage angle variables theta_n for each node (new)
+  *  - voltage angle variables theta_n for each node that is an end of a
+  *    line with nonzero susceptance (new)
   *
   * For pure HVDC networks (all susceptances zero), no angle variables are
   * needed since the flows are fully controllable. */
@@ -924,9 +925,22 @@ void DCNetworkBlock::generate_KIRCHHOFF_variables( void )
  if( number_nodes <= 1 )
   return;
 
- // voltage angle variables are needed only if there are DC lines
+ // voltage angle variables are needed only if there are DC lines, and only
+ // by the nodes that are an end of one
  if( ! f_NetworkData->is_HVDC() ) {
-  v_voltage_angle.resize( number_nodes );
+  const auto & start_line = f_NetworkData->get_start_line();
+  const auto & end_line = f_NetworkData->get_end_line();
+  v_voltage_angle_index.assign( number_nodes , Inf< Index >() );
+  for( auto l : f_NetworkData->get_DC_lines() )
+   v_voltage_angle_index[ start_line[ l ] ] =
+     v_voltage_angle_index[ end_line[ l ] ] = 0;  // marked
+
+  Index na = 0;
+  for( auto & i : v_voltage_angle_index )
+   if( i != Inf< Index >() )
+    i = na++;
+
+  v_voltage_angle.resize( na );
   for( auto & var : v_voltage_angle )
    var.set_type( ColVariable::kContinuous );
   add_static_variable( v_voltage_angle , "voltage_angle" );
@@ -1215,8 +1229,8 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
   for( auto & line_id : DC_lines ) {
    double B_l = get_line_susceptance( line_id );
    vars.emplace_back( & v_power_flow[ line_id ] , 1.0 );
-   vars.emplace_back( & v_voltage_angle[ start_line[ line_id ] ] , -B_l );
-   vars.emplace_back( & v_voltage_angle[ end_line[ line_id ] ] , B_l );
+   vars.emplace_back( get_voltage_angle( start_line[ line_id ] ) , -B_l );
+   vars.emplace_back( get_voltage_angle( end_line[ line_id ] ) , B_l );
 
    v_KIRCHHOFF_power_flow_def[ idx ].set_both( 0.0 );
    v_KIRCHHOFF_power_flow_def[ idx ].set_function(
@@ -1358,14 +1372,21 @@ void DCNetworkBlock::generate_reference_angle_constraint( void )
  const auto & components = f_NetworkData->get_subgraphs();
  const Index ref = f_NetworkData->get_reference_node();
 
- v_reference_angle_const.resize( components.size() );
- for( Index k = 0 ; k < components.size() ; ++k ) {
-  const auto & comp = components[ k ];
+ // a node that is the end of no line with nonzero susceptance is a component
+ // of its own, and has no angle to fix
+ std::vector< ColVariable * > reference;
+ for( const auto & comp : components ) {
   const Index r = ( std::find( comp.begin() , comp.end() , ref ) !=
 		    comp.end() ) ? ref : comp.front();
+  if( auto theta = get_voltage_angle( r ) )
+   reference.push_back( theta );
+  }
+
+ v_reference_angle_const.resize( reference.size() );
+ for( Index k = 0 ; k < reference.size() ; ++k ) {
   v_reference_angle_const[ k ].set_lhs( 0.0 );
   v_reference_angle_const[ k ].set_rhs( 0.0 );
-  v_reference_angle_const[ k ].set_variable( & v_voltage_angle[ r ] );
+  v_reference_angle_const[ k ].set_variable( reference[ k ] );
   }
 
  add_static_constraint( v_reference_angle_const , "reference_angle" );

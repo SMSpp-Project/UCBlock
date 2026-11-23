@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the unit test checks that the nodes with no line of nonzero susceptance
+  have no voltage angle, by the size of the group `voltage_angle` and of
+  the reference angles
+
 - the unit test checks that the cost of a line whose flow can be negative
   cannot become zero or nonzero once the variables of a `DCNetworkBlock` are
   generated, by both `set_network_cost()`, and that the auxiliary variable
@@ -27,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [`DATA_VERSION_<fmt>`] and is downloaded only by the tests that read it
 
 ### Changed
+
+- `DCNetworkBlock` generates the voltage angle of the Kirchhoff formulation
+  only for the nodes that are an end of a line with nonzero susceptance, and
+  the reference angle only for the components with an angle: the others were
+  columns fixed at 0 in no row; `OTSNetworkBlock` takes the angle of a node
+  from the protected `get_voltage_angle()`, and `DCNetworkBlock` has a data
+  member more
 
 - `DCNetworkBlock` generates the auxiliary variable `V_l >= | F_l |` of the
   network cost, and its two rows `power_flow_relax_abs`, only for the lines

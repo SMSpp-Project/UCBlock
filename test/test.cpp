@@ -1744,10 +1744,10 @@ static void test_net_DCDF_shared( void )
 /* The reference nodes. A line 0 -> 1 with susceptance, an HVDC line 0 -> 2
  * and ReferenceNode = 1, which is not the lowest node of its component:
  * the flow 100 on the line from 0 to the demand at 1 is feasible in every
- * formulation, with the angles of KIRCHHOFF that fix to 0 that of node 1
- * and that of node 2, the only node of the other component; an angle of
- * node 2 other than 0 is not feasible, one reference angle being fixed in
- * each component. Then a ReferenceNode that is not a node, and the PTDF
+ * formulation, with the angle of KIRCHHOFF of node 1 fixed to 0, the only
+ * reference angle, since node 2, the only node of the other component, is
+ * the end of no line with susceptance and has no angle. Then a
+ * ReferenceNode that is not a node, and the PTDF
  * matrix with its default Tikhonov coefficient, which is 0: the factor of
  * a single line is exactly -1. */
 
@@ -1768,12 +1768,12 @@ static void test_net_reference( void )
    if( wf == 2 ) {
     auto ra = nb->get_static_constraint_v< BoxConstraint >(
 							 "reference_angle" );
-    check( ra && ( ra->size() == 2 ) , what + ": not one reference angle "
-	   "per component" );
-    set_net_point( nb.get() , { 100 , 0 , 0 } , { 100 , 0 } ,
-		   { 10 , 0 , 5 } );
-    check( ! nb->is_feasible() , what + ": the angle of the other "
-	   "component is free" );
+    check( ra && ( ra->size() == 1 ) , what + ": not one reference angle "
+					     "for the component with angles" );
+    auto ang = nb->get_static_variable_v< ColVariable >( "voltage_angle" );
+    check( ang && ( ang->size() == 2 ) , what +
+					  ": the node with no line "
+					  "with susceptance has an angle" );
     }
    }
   catch( std::exception & e ) {
@@ -2352,6 +2352,49 @@ static void test_net_cost_flip( void )
 	  nb->set_network_cost( Block::MF_dbl_sp( three ) , Subset( { 1 } ) );
 	  } ) ,
 	 what + ": set_network_cost( subset ) prices a line with no cost" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The voltage angle of the KIRCHHOFF formulation exists only for a node that
+ * is an end of a line with nonzero susceptance: node 3 here is the end of an
+ * HVDC line only and node 4 of none, so the group "voltage_angle" has the
+ * three angles of nodes 0, 1 and 2 and not five, while the rows that use
+ * them and the reference angle are generated all the same. A network of HVDC
+ * lines only has no angle at all. */
+
+static void test_net_angles( void )
+{
+ const double B = 1000;
+ const std::string what = "voltage angles";
+ auto make = [ & ]( Index N , const std::vector< NetLine > & lines ,
+		    const std::vector< double > & demand ) {
+  std::unique_ptr< DCNetworkBlock > nb( dynamic_cast< DCNetworkBlock * >(
+    Block::new_Block( write_net( "DCNetworkBlock" , N , lines , demand ) ) ) );
+  nb->generate_abstract_variables();
+  nb->generate_abstract_constraints();
+  return( nb );
+  };
+ try {
+  auto nb =
+    make( 5 ,
+	  { { 0 , 1 , 10 , -B , B } , { 1 , 2 , 5 , -B , B } ,
+	    { 2 , 3 , 0 , -B , B } } ,
+	  { 0 , 0 , 0 , 1 , 0 } );
+  auto ang = nb->get_static_variable_v< ColVariable >( "voltage_angle" );
+  check( ang && ( ang->size() == 3 ) , what +
+					": not the angles of the three "
+					"nodes of a line with susceptance" );
+  auto ra = nb->get_static_constraint_v< BoxConstraint >( "reference_angle" );
+  check( ra && ( ra->size() == 1 ) , what + ": not one reference angle" );
+
+  nb = make( 3 , { { 0 , 1 , 0 , -B , B } , { 1 , 2 , 0 , -B , B } } ,
+	     { 0 , 0 , 1 } );
+  check( ! nb->get_static_variable_v< ColVariable >( "voltage_angle" ) ,
+	 what + ": a network of HVDC lines has an angle" );
   }
  catch( std::exception & e ) {
   check( false , what + ": throws " + e.what() );
@@ -18961,6 +19004,7 @@ int main( int argc , char ** argv )
   test_net_negative_cost();
   test_net_unpriced_cost();
   test_net_cost_flip();
+  test_net_angles();
   test_net_cost_solution( -1 , -1 );
   test_net_cost_solution( -1 , 0 );
   test_net_cost_solution( 0 , 0 );
