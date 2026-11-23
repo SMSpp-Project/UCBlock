@@ -18938,21 +18938,26 @@ static void test_scale_design_guard( void )
 
 static void test_balance_in_father_networks( void )
 {
- auto ec_group = new_group( "EC" , true );
- ec_group.putAtt( "type" , "ECNetworkBlock" );
- auto I = ec_group.addDim( "NumberIntervals" , 2 );
- auto N = ec_group.addDim( "NumberNodes" , 2 );
- put( ec_group , "BuyPrice" , I , { 3 , 4 } );
- put( ec_group , "SellPrice" , I , { 1 , 1 } );
- put( ec_group , "PeakTariff" , 2 );
- put( ec_group , "ActiveDemand" , { I , N } , { 5 , 6 , 7 , 8 } );
+ // the group of the EC, written when it is read, since new_group() makes
+ // a new file and the group of the previous one is no longer there
+ auto ec_group = []() {
+  auto g = new_group( "EC" , true );
+  g.putAtt( "type" , "ECNetworkBlock" );
+  auto I = g.addDim( "NumberIntervals" , 2 );
+  auto N = g.addDim( "NumberNodes" , 2 );
+  put( g , "BuyPrice" , I , { 3 , 4 } );
+  put( g , "SellPrice" , I , { 1 , 1 } );
+  put( g , "PeakTariff" , 2 );
+  put( g , "ActiveDemand" , { I , N } , { 5 , 6 , 7 , 8 } );
+  return( g );
+  };
 
  for( const bool ac : { true , false } ) {
   const std::string what = std::string( "balance in the father, " ) +
 			   ( ac ? "ACNetworkBlock" : "ECNetworkBlock" );
   try {
    std::unique_ptr< NetworkBlock > nb( dynamic_cast< NetworkBlock * >(
-	      Block::new_Block( ac ? write_AC_line( { } ) : ec_group ) ) );
+	      Block::new_Block( ac ? write_AC_line( { } ) : ec_group() ) ) );
    if( ! nb ) {
     check( false , what + ": not read" );
     continue;
