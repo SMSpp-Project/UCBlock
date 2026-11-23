@@ -1234,9 +1234,9 @@ class DCNetworkData : public NetworkData
   *   (the group "p_flow_network", see get_power_flow());
   *
   * - the auxiliary variables \f$ V_l \ge | F_l | \f$, one for each line
-  *   whose flow can be negative ("MinPowerFlow" < 0), if some line has a
-  *   nonzero cost "NetworkCost" (the group "aux_network",
-  *   see get_auxiliary_variable() and generate_network_cost_constraints());
+  *   whose flow can be negative ("MinPowerFlow" < 0) and has a nonzero cost
+  *   "NetworkCost" (the group "aux_network", see get_auxiliary_variable(),
+  *   has_auxiliary_variable() and generate_network_cost_constraints());
   *
   * - in the CYCLE formulation, the cycle flows \f$ h_c \f$, one for each
   *   fundamental cycle of DCNetworkData::compute_cycle_basis() (the group
@@ -1304,9 +1304,9 @@ class DCNetworkData : public NetworkData
   *   F_l - \kappa_l C^v P^{mn}_l x_l \ge 0 \tag{3}
   * \f]
   * ("Power_flow_limit_design_min"), the lower half of (1), i.e.,
-  * \f$ F_l \ge 0 \f$, being a bound when \f$ P^{mn}_l = 0 \f$. If some line
-  * has a nonzero cost \f$ c^{net}_l \f$ ("NetworkCost"), each line whose
-  * flow can be negative, \f$ P^{mn}_l < 0 \f$, has the rows
+  * \f$ F_l \ge 0 \f$, being a bound when \f$ P^{mn}_l = 0 \f$. Each line whose
+  * flow can be negative, \f$ P^{mn}_l < 0 \f$, and that has a nonzero cost
+  * \f$ c^{net}_l \f$ ("NetworkCost"), has the rows
   * \f[
   *   V_l - F_l \ge 0 \; , \qquad V_l + F_l \ge 0
   *   \tag{4}
@@ -1316,7 +1316,8 @@ class DCNetworkData : public NetworkData
   * objective (see generate_objective()) is \f$ c^{net}_l | F_l | \f$ at an
   * optimum, since \f$ c^{net}_l \ge 0 \f$ (a negative cost is refused). A
   * line whose flow cannot be negative has no \f$ V_l \f$ and no rows (4),
-  * its flow carrying its cost, as there \f$ F_l = | F_l | \f$.
+  * its flow carrying its cost, as there \f$ F_l = | F_l | \f$, and nor has a
+  * line with no cost.
   *
   * \par PTDF formulation
   * If \f$ \mathcal{L}^{S} = \emptyset \f$, the node balance (B) of the class
@@ -1906,16 +1907,32 @@ class DCNetworkData : public NetworkData
  /// returns the vector of auxiliary variables
  /** The returned std::vector< ColVariable >, say V, contains the auxiliary
   * variables \f$ V_l \ge | F_l | \f$ of the lines whose flow can be
-  * negative, i.e., with get_min_power_flow( l ) < 0, in the order of the
-  * lines. There are two possible cases:
+  * negative, i.e., with get_min_power_flow( l ) < 0, and that have a cost,
+  * i.e., with has_auxiliary_variable( l ), in the order of the lines. There
+  * are two possible cases:
   *
   * - if V is empty(), then this variable is not defined;
   *
-  * - otherwise, V[ k ] is the auxiliary variable of the k-th line whose flow
-  *   can be negative. */
+  * - otherwise, V[ k ] is the auxiliary variable of the k-th line with
+  *   has_auxiliary_variable( l ). */
 
  const std::vector< ColVariable > & get_auxiliary_variable( void ) const {
   return( v_auxiliary_variable );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if line \p l has an auxiliary variable
+ /** A line has one if its flow can be negative, i.e., if
+  * get_min_power_flow( l ) < 0, and it has a nonzero cost: without a cost
+  * there is no term to put \f$ V_l \f$ in, and where the flow cannot be
+  * negative \f$ | F_l | = F_l \f$ carries the cost. Once the Variable are
+  * generated this does not change, as set_network_cost() does not let the
+  * cost of such a line become zero or nonzero. */
+
+ bool has_auxiliary_variable( Index l ) const {
+  const auto & nc = f_NetworkData->get_network_cost();
+  return( ( get_min_power_flow( l ) < 0 ) && ( ! nc.empty() ) &&
+	   ( nc[ l ] != 0. ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2248,6 +2265,12 @@ class DCNetworkData : public NetworkData
 
  /// set the network cost values
  /** This function sets the network cost values of this DCNetworkBlock.
+  *
+  * Once the abstract Variable have been generated, the cost of a line whose
+  * flow can be negative cannot become zero or nonzero, since such a line
+  * has an auxiliary Variable if and only if it has a cost [see
+  * has_auxiliary_variable()], and no line can be priced if none was when
+  * the Variable were generated: std::logic_error is thrown.
   *
   * @param values  A span containing the network cost values, at least as long
   *                as \p subset (std::invalid_argument is thrown if it is
@@ -3117,8 +3140,9 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *   over the dimension "NumberLines"; AuxiliaryValue[ l ] is the value of
   *   the auxiliary variable \f$ V_l \geq | F_l | \f$ of line l, which carries
   *   the cost of its flow [see DCNetworkBlock::get_auxiliary_variable()], or
-  *   the flow of line l if its flow cannot be negative, the flow then
-  *   carrying its cost.
+  *   the flow of line l if it has no auxiliary variable [see
+  *   DCNetworkBlock::has_auxiliary_variable()], the flow then carrying its
+  *   cost, which may be zero.
   *   The variable is optional, and it is present only together with
   *   "FlowValue" and if some line has a nonzero "NetworkCost".
   *
@@ -3167,7 +3191,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *   both over the dimension "NumberNetworks" and the dimension
   *   "NumberLines"; AuxiliaryValue[ idx ][ l ] is the value of the
   *   auxiliary variable \f$ V_l \geq | F_l | \f$ of line l of this
-  *   DCNetworkBlock, or the flow of line l if its flow cannot be negative.
+  *   DCNetworkBlock, or the flow of line l if it has no auxiliary variable.
   *   The variable is optional, and it is present only
   *   together with "FlowValue" and if some line has a nonzero
   *   "NetworkCost".

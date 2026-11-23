@@ -866,10 +866,11 @@ void DCNetworkBlock::generate_PTDF_variables( void )
 
  if( has_network_cost() ) {
   // the auxiliary Variable V_l >= | F_l |, only where the flow can be
-  // negative: elsewhere | F_l | = F_l and the cost sits on F_l itself
+  // negative and the line has a cost: elsewhere | F_l | = F_l and the cost
+  // sits on F_l itself, or there is none
   Index two_way = 0;
   for( Index l = 0 ; l < number_lines ; ++l )
-   if( get_min_power_flow( l ) < 0 )
+   if( has_auxiliary_variable( l ) )
     ++two_way;
   v_auxiliary_variable.resize( two_way );
   for( auto & var : v_auxiliary_variable )
@@ -1320,8 +1321,8 @@ void DCNetworkBlock::generate_network_cost_constraints( void )
  v_power_flow_relax_abs.resize( MAFRC_ext()[ 2 ][ two_way ] );
 
  for( Index line_id = 0 , k = 0 ; line_id < number_lines ; ++line_id ) {
-  if( get_min_power_flow( line_id ) >= 0 )
-   continue;  // F_l >= 0, hence | F_l | = F_l
+  if( ! has_auxiliary_variable( line_id ) )
+   continue;  // F_l >= 0, hence | F_l | = F_l, or no cost
   vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -1.0 ) );
   vars.push_back( std::make_pair( &v_auxiliary_variable[ k ] , 1.0 ) );
   v_power_flow_relax_abs[ 0 ][ k ].set_lhs( 0.0 );
@@ -1749,7 +1750,7 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
   vars.resize( nl );
  
   for( Index line_id = 0 , k = 0 ; line_id < nl ; ++line_id )
-   vars[ line_id ] = std::make_pair( get_min_power_flow( line_id ) < 0
+   vars[ line_id ] = std::make_pair( has_auxiliary_variable( line_id )
 				       ? &v_auxiliary_variable[ k++ ]
 				       : &v_power_flow[ line_id ] ,
 				     nc[ line_id ] );
@@ -2357,17 +2358,27 @@ void DCNetworkBlock::set_network_cost( MF_dbl_sp values ,
   }
 
  // pricing a line the abstract representation was built without has no
- // Variable to hang the cost on: a line whose flow can be negative has no
- // auxiliary Variable, or the objective has no term
- Index two_way = 0;
- for( Index l = 0 ; l < get_number_lines() ; ++l )
-  if( get_min_power_flow( l ) < 0 )
-   ++two_way;
- if( variables_generated() &&
-     ( ( v_auxiliary_variable.size() != two_way ) ||
-       ( objective_generated() &&
-	 ( ! static_cast< LinearFunction * >( objective.get_function() )
-	       ->get_num_active_var() ) ) ) &&
+ // Variable to hang the cost on: a line whose flow can be negative has an
+ // auxiliary Variable if and only if it has a cost, which therefore cannot
+ // become zero or nonzero, and the objective of a network with no priced
+ // line has no term
+ if( variables_generated() ) {
+  auto cost_it = values.begin();
+  for( auto i : subset ) {
+   if( ( i < network_cost.size() ) && ( get_min_power_flow( i ) < 0 ) &&
+       ( ( network_cost[ i ] != 0.0 ) != ( *cost_it != 0.0 ) ) )
+    throw( std::logic_error(
+      "DCNetworkBlock::set_network_cost: the cost of a line whose flow can "
+      "be negative cannot become zero or nonzero once the abstract "
+      "representation has been generated, since it has its auxiliary "
+      "Variable if and only if it has a cost" ) );
+   ++cost_it;
+   }
+  }
+
+ if( variables_generated() && objective_generated() &&
+     ( ! static_cast< LinearFunction * >( objective.get_function() )
+	   ->get_num_active_var() ) &&
      std::any_of( values.begin() , values.begin() + subset.size() ,
                   []( double cst ) { return( cst != 0.0 ); } ) )
   throw( std::logic_error(
@@ -2404,7 +2415,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_sp values ,
    // elsewhere [see generate_objective()]
    std::vector< ColVariable * > cost_var( get_number_lines() );
    for( Index l = 0 , k = 0 ; l < cost_var.size() ; ++l )
-    cost_var[ l ] = get_min_power_flow( l ) < 0 ? &v_auxiliary_variable[ k++ ]
+    cost_var[ l ] = has_auxiliary_variable( l ) ? &v_auxiliary_variable[ k++ ]
 						: &v_power_flow[ l ];
 
    for( auto i : subset ) {
@@ -2479,17 +2490,24 @@ void DCNetworkBlock::set_network_cost( MF_dbl_sp values ,
  }
 
  // pricing a line the abstract representation was built without has no
- // Variable to hang the cost on: a line whose flow can be negative has no
- // auxiliary Variable, or the objective has no term
- Index two_way = 0;
- for( Index l = 0 ; l < get_number_lines() ; ++l )
-  if( get_min_power_flow( l ) < 0 )
-   ++two_way;
- if( variables_generated() &&
-     ( ( v_auxiliary_variable.size() != two_way ) ||
-       ( objective_generated() &&
-	 ( ! static_cast< LinearFunction * >( objective.get_function() )
-	       ->get_num_active_var() ) ) ) &&
+ // Variable to hang the cost on: a line whose flow can be negative has an
+ // auxiliary Variable if and only if it has a cost, which therefore cannot
+ // become zero or nonzero, and the objective of a network with no priced
+ // line has no term
+ if( variables_generated() )
+  for( Index i = rng.first ; i < rng.second ; ++i )
+   if( ( get_min_power_flow( i ) < 0 ) &&
+       ( ( network_cost[ i ] != 0.0 ) !=
+	 ( *( values.begin() + ( i - rng.first ) ) != 0.0 ) ) )
+    throw( std::logic_error(
+      "DCNetworkBlock::set_network_cost: the cost of a line whose flow can "
+      "be negative cannot become zero or nonzero once the abstract "
+      "representation has been generated, since it has its auxiliary "
+      "Variable if and only if it has a cost" ) );
+
+ if( variables_generated() && objective_generated() &&
+     ( ! static_cast< LinearFunction * >( objective.get_function() )
+	   ->get_num_active_var() ) &&
      std::any_of( values.begin() , values.begin() + sz ,
                   []( double cst ) { return( cst != 0.0 ); } ) )
   throw( std::logic_error(
@@ -2514,7 +2532,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_sp values ,
    // elsewhere [see generate_objective()]
    std::vector< ColVariable * > cost_var( get_number_lines() );
    for( Index l = 0 , k = 0 ; l < cost_var.size() ; ++l )
-    cost_var[ l ] = get_min_power_flow( l ) < 0 ? &v_auxiliary_variable[ k++ ]
+    cost_var[ l ] = has_auxiliary_variable( l ) ? &v_auxiliary_variable[ k++ ]
 						: &v_power_flow[ l ];
 
    for( Index i = rng.first ; i < rng.second ; ++i ) {
@@ -2897,7 +2915,7 @@ void DCNetworkBlockSolution::read( const Block * block )
   // the auxiliary variables V_l >= | F_l | carry the cost of the flows, and
   // a Solution without them would give back the flows with whatever value
   // they had before, hence another cost; they are held one for each line,
-  // a line whose flow cannot be negative having its flow, which carries
+  // a line with no auxiliary variable having its flow, which carries
   // its cost, whenever the network has a cost, so that the Solution does
   // not depend on which lines have one, which may change with the instant
   const auto & V = DCNB->get_auxiliary_variable();
@@ -2906,7 +2924,7 @@ void DCNetworkBlockSolution::read( const Block * block )
   else {
    v_aux.resize( f_number_lines );
    for( Index l = 0 , k = 0 ; l < f_number_lines ; ++l )
-    v_aux[ l ] = ( DCNB->get_min_power_flow( l ) < 0 ) ? V[ k++ ].get_value()
+    v_aux[ l ] = ( DCNB->has_auxiliary_variable( l ) ) ? V[ k++ ].get_value()
 						       : v_flow[ l ];
    }
   }
@@ -2946,7 +2964,7 @@ void DCNetworkBlockSolution::write( Block * block )
   std::vector< double > av;
   if( v_aux.size() == f_number_lines )
    for( Index l = 0 ; l < f_number_lines ; ++l )
-    if( DCNB->get_min_power_flow( l ) < 0 )
+    if( DCNB->has_auxiliary_variable( l ) )
      av.push_back( v_aux[ l ] );
   if( ( v_aux.size() != f_number_lines ) ||
       ( DCNB->get_auxiliary_variable().size() != av.size() ) )

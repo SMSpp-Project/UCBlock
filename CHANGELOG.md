@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the unit test checks that the cost of a line whose flow can be negative
+  cannot become zero or nonzero once the variables of a `DCNetworkBlock` are
+  generated, by both `set_network_cost()`, and that the auxiliary variable
+  is that of the priced lines only
+
 - the instances of the EDF case Man0euVRE in `data/nc4/pypsa-data/man0euvre`
   (data 2026-11-16), as the workflow of SPSUnipi/RESILIENT-instances hands
   them to SMS++: 16 regions, 2 days and 3 scenarios, written for the Benders
@@ -22,6 +27,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [`DATA_VERSION_<fmt>`] and is downloaded only by the tests that read it
 
 ### Changed
+
+- `DCNetworkBlock` generates the auxiliary variable `V_l >= | F_l |` of the
+  network cost, and its two rows `power_flow_relax_abs`, only for the lines
+  whose flow can be negative (`MinPowerFlow` < 0) that have a nonzero
+  `NetworkCost`: a line with no cost has no term to put `V_l` in, and its
+  flow takes `V_l`'s place in the objective with a zero coefficient, as for
+  a line whose flow cannot be negative. `has_auxiliary_variable()` says
+  which lines have one, which are those `get_auxiliary_variable()` lists in
+  the order of the lines, and the netCDF format of `DCNetworkBlockSolution`
+  does not change, `AuxiliaryValue` keeping one entry for each line, the
+  flow for a line with no auxiliary variable. Once the variables are
+  generated, `set_network_cost()` throws `std::logic_error` if the cost of
+  a line whose flow can be negative would become zero or nonzero, since the
+  line would then lose or need its auxiliary variable; it accepted any
+  change before. On a sector-coupled network of 576 instants, with no cost
+  on the lines whose flow can be negative, this is 24768 variables and
+  49536 rows less in each scenario
 
 - `BatteryUnitBlock` writes no rows `ActivePower_Battery` (the active power
   bounds (1) and (2)) for a unit whose power has no finite bound at any

@@ -2287,6 +2287,78 @@ static void test_net_unpriced_cost( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A line whose flow can be negative has an auxiliary Variable if and only if
+ * it has a cost, so that once the abstract Variable have been generated the
+ * cost of such a line cannot become zero or nonzero, and both
+ * set_network_cost() refuse it, while the cost of the line that has one can
+ * change to another nonzero value, also when the Objective is generated. */
+
+static void test_net_cost_flip( void )
+{
+ const double B = 1000;
+ auto g = write_net( "DCNetworkBlock" , 3 ,
+		     { { 0 , 1 , 0 , -B , B } , { 1 , 2 , 0 , -B , B } } ,
+		     { 0 , 0 , 1 } );
+ put( g , "NetworkCost" , g.getDim( "NumberLines" ) , { 2 , 0 } );
+ const std::string what = "network cost flip";
+ auto refused = [ & ]( auto f ) {
+  try {
+   f();
+   }
+  catch( std::logic_error & ) {
+   return( true );
+   }
+  return( false );
+  };
+ try {
+  std::unique_ptr< DCNetworkBlock > nb(
+    dynamic_cast< DCNetworkBlock * >( Block::new_Block( g ) ) );
+  nb->generate_abstract_variables();
+  nb->generate_abstract_constraints();
+  nb->generate_objective();
+  check(
+    ( nb->get_auxiliary_variable().size() == 1 ) &&
+      nb->has_auxiliary_variable( 0 ) && ( ! nb->has_auxiliary_variable( 1 ) ) ,
+    what + ": the auxiliary Variable is not that of the priced line only" );
+
+  const std::vector< double > three = { 3 } , zero = { 0 } , four = { 4 };
+  check( ! refused( [ & ]() {
+   nb->set_network_cost( Block::MF_dbl_sp( three ) , Range( 0 , 1 ) );
+   } ) ,
+	 what + ": a priced line cannot change its cost, range" );
+  check( ! refused( [ & ]() {
+   nb->set_network_cost( Block::MF_dbl_sp( four ) , Subset( { 0 } ) );
+   } ) ,
+	 what + ": a priced line cannot change its cost, subset" );
+  auto lf = static_cast< LinearFunction * >(
+    static_cast< FRealObjective * >( nb->get_objective() )->get_function() );
+  const auto idx = lf->is_active( &nb->get_auxiliary_variable()[ 0 ] );
+  check( ( idx != Inf< Index >() ) && ( lf->get_coefficient( idx ) == 4 ) ,
+	 what + ": the new cost is not on the auxiliary Variable" );
+
+  check( refused( [ & ]() {
+	  nb->set_network_cost( Block::MF_dbl_sp( zero ) , Range( 0 , 1 ) );
+	  } ) ,
+	 what + ": set_network_cost( range ) takes a cost to zero" );
+  check( refused( [ & ]() {
+	  nb->set_network_cost( Block::MF_dbl_sp( zero ) , Subset( { 0 } ) );
+	  } ) ,
+	 what + ": set_network_cost( subset ) takes a cost to zero" );
+  check( refused( [ & ]() {
+	  nb->set_network_cost( Block::MF_dbl_sp( three ) , Range( 1 , 2 ) );
+	  } ) ,
+	 what + ": set_network_cost( range ) prices a line with no cost" );
+  check( refused( [ & ]() {
+	  nb->set_network_cost( Block::MF_dbl_sp( three ) , Subset( { 1 } ) );
+	  } ) ,
+	 what + ": set_network_cost( subset ) prices a line with no cost" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* A negative NetworkCost leaves V_l >= | F_l | unbounded above in the
  * Objective: it is refused when read and by both set_network_cost(), while
  * a zero cost is accepted. */
@@ -2336,8 +2408,9 @@ static void test_net_negative_cost( void )
 						Subset( { 1 } ) ); } ) ,
 	"network cost: set_network_cost( subset ) accepts -1" );
  val = { 4 };
- check( ! throws( [ & ]() { nb->set_network_cost( Block::MF_dbl_sp( val ) ,
-						  Range( 1 , 2 ) ); } ) ,
+ check( ! throws( [ & ]() {
+  nb->set_network_cost( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
+  } ) ,
 	"network cost: set_network_cost( range ) refuses 4" );
  delete nb;
  }
@@ -5115,7 +5188,7 @@ static void test_UC_solution_formats( void )
      for( Index t = 0 ; t < uc->get_number_networks() ; ++t ) {
       auto nbt = uc->get_network_block( t );
       auto dc = dynamic_cast< DCNetworkBlock * >( nbt );
-      const Index na = cost ? 3 : 0;
+      const Index na = cost ? 2 : 0;  // the line of cost 0 has none
       check( dc && ( dc->get_auxiliary_variable().size() == na ) ,
 	     who + ": NetworkBlock " + std::to_string( t ) + " has not the "
 	     "auxiliary Variable of its cost" );
@@ -18887,6 +18960,7 @@ int main( int argc , char ** argv )
   test_net_OTS_cost();
   test_net_negative_cost();
   test_net_unpriced_cost();
+  test_net_cost_flip();
   test_net_cost_solution( -1 , -1 );
   test_net_cost_solution( -1 , 0 );
   test_net_cost_solution( 0 , 0 );
