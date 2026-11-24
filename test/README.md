@@ -17,7 +17,10 @@ or OFF in some instants (an infeasible fixing included), the minimum times set
 before the Variable are generated, the scale factor and the modulations of a
 nuclear unit. The schedule each solver returns has to be feasible for the unit
 and, when the abstract representation is there, to satisfy its Constraint and
-to cost what the solver says.
+to cost what the solver says. The penalties of fixing each commitment that
+`ThermalUnitBlock::get_fixing_penalties()` gives, with the DP solver registered
+to the unit and without, have to be the brute force with the commitment fixed
+OFF and ON minus the free one.
 
 Every `UnitBlock` and `NetworkBlock` of the module, and a `UCBlock` with no
 unit or with one unit of each kind on two nodes, is then written in a netCDF

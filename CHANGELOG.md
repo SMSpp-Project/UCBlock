@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   archive `man0euvre` (`data/man0euvre`), which has a version of its own
   [`DATA_VERSION_<fmt>`] and is downloaded only by the tests that read it
 
+- `ThermalUnitBlock::get_fixing_penalties()` gives, for each commitment
+  that is not fixed (and the design, if the unit has an InvestmentCost), by
+  how much the optimal value of the unit grows if it is fixed to 0 or to 1,
+  exactly, by `ThermalUnitDPSolver::fixing_penalties()`, which takes them
+  from the labels of its shortest path from the source and from the
+  destination, so that a Lagrangian method fixes the commitment by reduced
+  cost [see `Block::get_fixing_penalties()` of SMS++]
+
 ### Changed
 
 - the makefiles give the shared library of the module by default, a DLL on

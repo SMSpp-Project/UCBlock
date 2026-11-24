@@ -18,6 +18,9 @@
  * the ramps with the limits of the start-up and of the shut-down, the
  * commitment fixed ON or OFF in some instants (infeasibility included), the
  * number of copies, and the operating rules of a nuclear unit that modulates.
+ * The penalties of fixing the commitment of a ThermalUnitBlock
+ * [see ThermalUnitBlock::get_fixing_penalties()] have to be the brute force
+ * with the commitment fixed OFF and ON minus the free one.
  *
  * Then every UnitBlock and NetworkBlock of the module, and a UCBlock with
  * no unit or with one unit of each kind on two nodes, is written in a
@@ -77,6 +80,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 #include <netcdf>
@@ -940,6 +944,99 @@ static void test_DP_clamped_min_up_down( void )
 	std::to_string( tub->get_min_up_time() ) );
  check_all_DP( tub , 10 , "clamped up time 9, on since 3" );
  delete tub;
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the penalties of fixing the commitment against the brute force: p0 (p1)
+/// of each commitment that is not fixed has to be the optimum with it fixed
+/// OFF (ON) minus the free one, half of the cases with the DP Solver
+/// registered to the unit, which get_fixing_penalties() then uses
+
+static void test_fixing_penalties( void )
+{
+ const auto rg0 = rg;  // the draws of the tests that follow stay the same
+
+ for( int i = 0 ; i < 80 ; ++i ) {
+  auto r = random_TU( false );
+  auto tub = new_TU( r );
+  generate_all( tub );
+  auto u = tub->get_commitment( 0 );
+  std::vector< int > fix( r.T , -1 );
+  for( Index t = 0 ; t < r.T ; ++t )
+   if( u[ t ].is_fixed() )
+    fix[ t ] = u[ t ].get_value() >= 0.5;  // fixed by the initial state
+   else
+    if( rnd( 0 , 3 ) == 0 ) {
+     fix[ t ] = rnd( 0 , 1 );
+     u[ t ].set_value( fix[ t ] );
+     u[ t ].is_fixed( true );
+     }
+
+  Solver * slv = nullptr;
+  if( i % 2 ) {
+   slv = Solver::new_Solver( "ThermalUnitDPSolver" );
+   tub->register_Solver( slv );
+   slv->compute();
+   }
+
+  const auto what = "penalties " + std::to_string( i ) + " (" +
+                    describe( r ) + ")";
+  const double z = brute_force( r , fix );
+  std::vector< std::tuple< ColVariable * , double , double > > pen;
+  const bool ok = tub->get_fixing_penalties( pen );
+  if( z == INF )
+   check( ! ok , what + ": infeasible, but penalties given" );
+  else {
+   check( ok , what + ": no penalties" );
+   std::vector< int > seen( r.T , 0 );
+   for( const auto & [ v , p0 , p1 ] : pen ) {
+    const auto t = Index( v - u );
+    if( ( t >= r.T ) || ( fix[ t ] >= 0 ) ) {
+     check( false , what + ": an entry for a fixed or a foreign Variable" );
+     continue;
+     }
+    ++seen[ t ];
+    for( int b = 0 ; b < 2 ; ++b ) {
+     auto fb = fix;
+     fb[ t ] = b;
+     const double zb = brute_force( r , fb );
+     const double exp = zb == INF ? INF : zb - z;
+     const double p = b ? p1 : p0;
+     check( close( p , exp ) , what + ": the penalty of u[" +
+	    std::to_string( t ) + "] = " + std::to_string( b ) + " is " +
+	    str( p ) + " instead of " + str( exp ) );
+     }
+    }
+   for( Index t = 0 ; t < r.T ; ++t )
+    if( fix[ t ] < 0 )
+     check( seen[ t ] == 1 , what + ": u[" + std::to_string( t ) + "] has " +
+	    std::to_string( seen[ t ] ) + " entries" );
+   }
+
+  if( slv )
+   tub->unregister_Solver( slv , true );
+  delete tub;
+  }
+
+ // a NuclearUnitBlock, which the DP of the thermal unit does not solve, and
+ // a unit with no Variable give none
+ TUData d;
+ d.T = 2;
+ d.lin = { -10 , 10 };
+ auto tub = new_TU( d );
+ std::vector< std::tuple< ColVariable * , double , double > > pen;
+ check( ! tub->get_fixing_penalties( pen ) ,
+	"penalties without the Variable" );
+ delete tub;
+ d.nuclear = true;
+ d.mru = d.mrd = 1;
+ tub = new_TU( d );
+ generate_all( tub );
+ check( ! tub->get_fixing_penalties( pen ) , "penalties of a nuclear unit" );
+ check( pen.empty() , "penalties of a nuclear unit, pen changed" );
+ delete tub;
+
+ rg = rg0;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -18839,6 +18936,7 @@ int main( int argc , char ** argv )
   test_DP_set_min_up_down();
   test_DP_clamped_min_up_down();
   test_DP_nuclear();
+  test_fixing_penalties();
   test_sol_feasible();
   test_thermal_3bin_max_power();
   test_thermal_data_checks();

@@ -841,6 +841,8 @@ void ThermalUnitDPSolver::min_path( void )
     Q_star += std::min( c * reactive_min[ t ] , c * reactive_max[ t ] );
    }
 
+ f_q_star = Q_star;  // for fixing_penalties()
+
  // design (investment) decision: the shortest path above solved the
  // operational problem assuming the unit exists (design == 1), so
  // f_end.lab + Q_star is the optimal operational cost p*, the active-power
@@ -927,6 +929,99 @@ void ThermalUnitDPSolver::compute_solutions( void )
  stage = sol_OK;  // all done: update stage
 
  }  // end( ThermalUnitDPSolver::compute_solutions )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitDPSolver::backward_labels( void )
+{
+ // the reverse of the topological order of min_path(); the nodes that are
+ // not reachable from s have no arcs, and keep the label TUDPINF
+ auto scan = []( node & nde ) {
+  nde.blab = TUDPINF;
+  for( const auto & a : nde.v_arcs )
+   nde.blab = std::min( nde.blab , a.cost1 + a.cost2 + ( a.tail )->blab );
+  };
+
+ f_end.blab = 0;
+ for( Index i = time_horizon ; i-- > 0 ; ) {
+  scan( v_off_nodes[ i ] );
+  scan( v_on_nodes[ i ] );
+  }
+ scan( f_start );
+
+ }  // end( ThermalUnitDPSolver::backward_labels )
+
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitDPSolver::fixing_penalties(
+     std::vector< std::tuple< ColVariable * , double , double > > & pen )
+{
+ std::lock_guard< Solver > guard( *this );
+
+ auto b = static_cast< ThermalUnitBlock * >( f_Block );
+ auto u = b ? b->get_commitment( 0 ) : nullptr;
+ if( ( ! u ) || ( compute() != kOK ) )
+  return( false );
+
+ backward_labels();
+ const double zeta = f_start.blab;  // the shortest path, before min_path()
+                                    // adds the reactive term and the design
+
+ // zt[ b ][ t ]: the shortest path through an arc that has the unit in the
+ // state b at t; the arcs out of a node are ordered by their head, and an
+ // arc covers t if its head is beyond t, so that a suffix minimum over them
+ // gives all the t at once
+ std::vector< double > zt[ 2 ];
+ zt[ 0 ].assign( time_horizon , TUDPINF );
+ zt[ 1 ].assign( time_horizon , TUDPINF );
+
+ auto sweep = [ & ]( node & nde , std::vector< double > & z ) {
+  if( ( nde.lab == TUDPINF ) || nde.v_arcs.empty() )
+   return;
+  const Index h = h_of_node( & nde );
+  auto a = nde.v_arcs.end();
+  double m = TUDPINF;
+  for( Index t = time_horizon ; t-- > h ; ) {
+   while( ( a != nde.v_arcs.begin() ) &&
+	  ( h_of_node( ( a - 1 )->tail ) > t ) ) {
+    --a;
+    m = std::min( m , nde.lab + a->cost1 + a->cost2 + ( a->tail )->blab );
+    }
+   z[ t ] = std::min( z[ t ] , m );
+   }
+  };
+
+ sweep( f_start , zt[ f_start.DPS ? 1 : 0 ] );
+ for( Index i = 0 ; i < time_horizon ; ++i ) {
+  sweep( v_on_nodes[ i ] , zt[ 1 ] );
+  sweep( v_off_nodes[ i ] , zt[ 0 ] );
+  }
+
+ // the value of the unit built with a path of value z, and that of the unit
+ // not built, as min_path() takes them; the optimal value is f_end.lab
+ const double sh = f_q_star + ( has_design ? design_cost : 0 );
+ auto built = [ & ]( double z ) {
+  return( ( f_no_build || ( z == TUDPINF ) ) ? TUDPINF : z + sh );
+  };
+ const double absent = ( has_design && ( ! f_must_build ) ) ? 0 : TUDPINF;
+ auto penalty = [ & ]( double v ) {
+  return( v == TUDPINF ? TUDPINF : std::max( 0.0 , v - f_end.lab ) );
+  };
+
+ pen.reserve( pen.size() + time_horizon + 1 );
+ for( Index t = 0 ; t < time_horizon ; ++t )
+  if( ! u[ t ].is_fixed() )
+   pen.emplace_back( & u[ t ] ,
+		     penalty( std::min( built( zt[ 0 ][ t ] ) , absent ) ) ,
+		     penalty( built( zt[ 1 ][ t ] ) ) );
+
+ if( has_design && ( ! b->get_design().is_fixed() ) )
+  pen.emplace_back( & b->get_design() , penalty( absent ) ,
+		    penalty( built( zeta ) ) );
+
+ return( true );
+
+ }  // end( ThermalUnitDPSolver::fixing_penalties )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/

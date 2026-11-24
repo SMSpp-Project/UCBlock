@@ -45,6 +45,8 @@
 
 #include "ThermalUnitBlock.h"
 
+#include "ThermalUnitDPSolver.h"
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -4486,6 +4488,33 @@ bool ThermalUnitBlock::is_sol_feasible_physical( void ) const
  return( true );
 
  }  // end( ThermalUnitBlock::is_sol_feasible_physical )
+
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitBlock::get_fixing_penalties(
+     std::vector< std::tuple< ColVariable * , double , double > > & pen )
+{
+ // the DP solves the ThermalUnitBlock and none of its derived classes
+ if( ( typeid( ThermalUnitBlock ) != typeid( *this ) ) ||
+     ( ! get_commitment( 0 ) ) )
+  return( false );
+
+ try {
+  for( auto s : get_registered_solvers() )
+   if( auto dp = dynamic_cast< ThermalUnitDPSolver * >( s ) )
+    return( dp->fixing_penalties( pen ) );
+
+  ThermalUnitDPSolver dp;
+  dp.set_Block( this );
+  const bool ok = dp.fixing_penalties( pen );
+  dp.set_Block( nullptr );
+  return( ok );
+  }
+ catch( std::exception & ) {  // something the DP does not handle
+  return( false );
+  }
+
+ }  // end( ThermalUnitBlock::get_fixing_penalties )
 
 /*--------------------------------------------------------------------------*/
 

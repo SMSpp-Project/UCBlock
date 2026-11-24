@@ -38,6 +38,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include <memory>
+#include <tuple>
+#include <vector>
 
 #include "Solver.h"
 
@@ -303,6 +305,58 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
   }
 
 /*--------------------------------------------------------------------------*/
+ /// the penalties of fixing the commitment, and the design, of the unit
+ /** Computes Block::get_fixing_penalties() of the ThermalUnitBlock: after
+  * compute() (which it calls, and which does nothing if the problem has
+  * not changed), it gives one entry ( v , p0 , p1 ) for each commitment
+  * Variable \f$ u_t \f$ that is not fixed and, if the unit has an
+  * InvestmentCost, for the design Variable if it is not fixed; the
+  * start-up and the shut-down Variable have none, since their fixing
+  * cannot be honoured [see load_fixings()]. The penalties come out of the
+  * shortest path of the class comment without solving it again. With
+  * \f$ \Lambda( v ) \f$ the label of the node \f$ v \f$, computed from
+  * \f$ s \f$, the backward labels are
+  * \f[
+  *   \Lambda'( d ) = 0 \, , \quad \Lambda'( v ) = \min \{ \,
+  *   \mbox{cost}( v , w ) + \Lambda'( w ) \, \}
+  * \f]
+  * over the arcs out of \f$ v \f$, in the reverse topological order, so
+  * that \f$ \zeta = \Lambda'( s ) \f$ is the value of the shortest path
+  * and \f$ \Lambda( v ) + \mbox{cost}( v , w ) + \Lambda'( w ) \f$ that of
+  * the shortest path through the arc \f$ ( v , w ) \f$. Each arc fixes the
+  * state of the unit in the instants \f$ h( v ) , \ldots , h( w ) - 1 \f$,
+  * where \f$ h \f$ is the instant of the node, with \f$ h( s ) = 0 \f$ and
+  * \f$ h( d ) = T \f$: on if it leaves an on node (or the source of a unit
+  * on before the horizon), off otherwise. Since every path covers each
+  * instant with exactly one arc, the value of the problem with \f$ u_t \f$
+  * fixed to \f$ b \in \{ 0 , 1 \} \f$ is
+  * \f[
+  *   \zeta^b_t = \min \{ \, \Lambda( v ) + \mbox{cost}( v , w ) +
+  *   \Lambda'( w ) \, : \, ( v , w ) \mbox{ in the state } b \, , \;\,
+  *   h( v ) \leq t < h( w ) \, \} \, ,
+  * \f]
+  * which, the arcs out of a node being ordered by \f$ h( w ) \f$, a
+  * suffix minimum over them gives for all \f$ t \f$ in \f$ O( T ) \f$ per
+  * node, hence in the time of the shortest path. Without InvestmentCost
+  * the penalties are \f$ p_b = \zeta^b_t - \zeta \f$. With it, a path of
+  * value \f$ \zeta \f$ costs \f$ \phi( \zeta ) = \zeta + Q + c^{inv} \f$,
+  * \f$ Q \f$ being the reactive term and \f$ c^{inv} \f$ the coefficient of
+  * the design, and the unit not built costs 0; then \f$ u_t = 1 \f$ costs
+  * \f$ \phi( \zeta^1_t ) \f$, \f$ u_t = 0 \f$ costs
+  * \f$ \min\{ \phi( \zeta^0_t ) , 0 \} \f$, the design at 1 costs
+  * \f$ \phi( \zeta ) \f$ and at 0 costs 0, a fixing that forces the unit
+  * to be built (not to be) removing the value 0 (the values \f$ \phi \f$),
+  * and the penalties are these minus the optimal value. A value that no
+  * path attains gives Inf< double >().
+  *
+  * Returns false, leaving \p pen untouched, if the unit has no commitment
+  * Variable or the problem is infeasible, and throws what compute() throws
+  * [see load_fixings()]. */
+
+ bool fixing_penalties(
+     std::vector< std::tuple< ColVariable * , double , double > > & pen );
+
+/*--------------------------------------------------------------------------*/
 
  /// extends Solver::int_par_type_S with the ThermalUnitDPSolver parameters
  enum int_par_type_TUDPS {
@@ -369,6 +423,9 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
 
  /// computes the variable values and the total cost
  void compute_solutions( void );
+
+ /// computes the labels of the nodes from d, in node::blab
+ void backward_labels( void );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
@@ -567,11 +624,12 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
  {
   public:
 
-  node( void ) : lab( 0 ) , pred( nullptr ) , DPS( nullptr ) {}
+  node( void ) : lab( 0 ) , blab( 0 ) , pred( nullptr ) , DPS( nullptr ) {}
 
   ~node() = default;
 
   double lab;                 ///< the label of the node
+  double blab;                ///< the label of the node from d
   node * pred;                ///< the predecessor of the node in the path
   EDSolver * DPS;             ///< the ED solver of the node (non-owning: the
                               ///< solvers are owned by the solver's pool)
@@ -730,6 +788,8 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
   * compute_EDPs(); both are empty when no reserve cost is negative. */
  std::vector< PQFun > eff_disc;
  std::vector< PQFun > eff_disc_su;  ///< the start-up variant of eff_disc
+
+ double f_q_star{ 0 };             ///< the reactive term of min_path()
 
  char stage;                       ///< what has been computed
 

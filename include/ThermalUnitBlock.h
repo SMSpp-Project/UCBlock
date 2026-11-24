@@ -1529,6 +1529,26 @@ class ThermalUnitBlock : public UnitBlock
 
  [[nodiscard]] bool is_sol_feasible_physical( void ) const override;
 
+/*--------------------------------------------------------------------------*/
+ /// the penalties of fixing the commitment at the current Objective
+ /** Implements Block::get_fixing_penalties() by the shortest path of
+  * ThermalUnitDPSolver, which gives them exactly, the formula being in
+  * ThermalUnitDPSolver::fixing_penalties(): one entry for each commitment
+  * Variable that is not fixed and, if the unit has an InvestmentCost, for
+  * the design Variable if it is not fixed, but none for the start-up and
+  * the shut-down Variable, whose fixing the DP cannot honour. The
+  * ThermalUnitDPSolver registered to the unit, if any, is used, as it is
+  * already solved at the current Objective when the unit is the component
+  * of a Lagrangian decomposition; otherwise one is made for the occasion,
+  * and not registered. Returns false if the unit is of a derived class, has
+  * no commitment Variable, has something the DP does not handle (a fixed
+  * Variable other than the commitment and the design, a reference
+  * schedule) or is infeasible. */
+
+ bool get_fixing_penalties(
+     std::vector< std::tuple< ColVariable * , double , double > > & pen )
+  override;
+
 
 /** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE ThermalUnitBlock -----------*/
