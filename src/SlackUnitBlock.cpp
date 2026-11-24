@@ -9,6 +9,10 @@
  * completely independently from each other and from all other time periods,
  * albeit at a (typically, huge) cost.
  *
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
@@ -17,15 +21,11 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Rafael Durbano Lobato \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano
+ * \copyright &copy; by Rafael Durbano, Antonio Frangioni, Ali Ghezelsoflu
  * Lobato,
  *                      Donato Meoli
  */

@@ -6,13 +6,13 @@
  * ThermalUnitBlock, comprised its spinning-reserve variables, using a
  * Dynamic Programming algorithm.
  *
- * \author Claudio Gentile \n
- *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
- *         Consiglio Nazionale delle Ricerche \n
- *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
+ *
+ * \author Claudio Gentile \n
+ *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
+ *         Consiglio Nazionale delle Ricerche \n
  *
  * \author Niccolo' Iardella \n
  *         Dipartimento di Informatica \n
@@ -22,7 +22,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Claudio Gentile, Antonio Frangioni, Niccolo' Iardella,
+ * \copyright &copy; by Antonio Frangioni, Claudio Gentile, Niccolo' Iardella,
  *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/

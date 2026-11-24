@@ -7,9 +7,6 @@
  * defines the standard SOCP relaxation corresponding to the "AC model"
  * of the transmission network in the Unit Commitment problem.
  *
- * \author Quentin Jacquet \n
- *         EDF R&D OSIRIS \n
- *
  * \author Wim van Ackooij \n
  *         EDF R&D OSIRIS \n
  *
@@ -17,11 +14,14 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Quentin Jacquet \n
+ *         EDF R&D OSIRIS \n
+ *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Quentin Jacquet, Wim van Ackooij,
+ * \copyright &copy; by Wim van Ackooij, Antonio Frangioni, Quentin Jacquet,
  *            Donato Meoli
  */
 /*--------------------------------------------------------------------------*/

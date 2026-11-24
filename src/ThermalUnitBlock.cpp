@@ -4,6 +4,14 @@
 /** @file
  * Implementation of the ThermalUnitBlock class.
  *
+ * \author Tiziano Bacci \n
+ *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
+ *         Consiglio Nazionale delle Ricerche \n
+ *
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
@@ -12,20 +20,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Rafael Durbano Lobato \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Tiziano Bacci \n
- *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
- *         Consiglio Nazionale delle Ricerche \n
- *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                      Rafael Durbano Lobato, Donato Meoli, Tiziano Bacci
+ * \copyright &copy; by Tiziano Bacci, Rafael Durbano Lobato,
+ *                      Antonio Frangioni, Ali Ghezelsoflu, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/

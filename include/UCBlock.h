@@ -11,6 +11,10 @@
  * (large) set of technical constraints. The model as a whole is described
  * in \ref ucblock_model.
  *
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
@@ -19,7 +23,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Rafael Durbano Lobato \n
+ * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -27,13 +31,9 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Donato Meoli \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                      Rafael Durbano Lobato, Kostas Tavlaridis-Gyparakis,
- *                      Donato Meoli
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni,
+ *                      Ali Ghezelsoflu, Donato Meoli,
+ *                      Kostas Tavlaridis-Gyparakis
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/

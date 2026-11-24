@@ -4,6 +4,13 @@
 /** @file
  * Implementation of the DCNetworkBlock class.
  *
+ * \author Wim van Ackooij \n
+ *         EDF R&D OSIRIS \n
+ *
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
@@ -12,18 +19,11 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Wim van Ackooij \n
- *         EDF R&D OSIRIS \n
- *
  * \author Quentin Jacquet \n
  *         EDF R&D OSIRIS \n
  *
- * \author Rafael Durbano Lobato \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Wim van Ackooij,
- *                      Quentin Jacquet, Rafael Durbano Lobato
+ * \copyright &copy; by Wim van Ackooij, Rafael Durbano Lobato,
+ *                      Antonio Frangioni, Ali Ghezelsoflu, Quentin Jacquet
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
