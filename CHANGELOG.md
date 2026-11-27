@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `ThermalUnitBlock::set_path_solution()` tells whether an arc is in the
+  path of the schedule from its ends in O(1), rather than searching the list
+  of the runs: Theta(T^3) instead of Theta(T^3 R) with R runs
+
 - the makefiles give the shared library of the module by default, a DLL on
   Windows, as CMake does, and its objects with `SMSppSTATIC` [see
   `lib/makefile-shared` of SMS++]

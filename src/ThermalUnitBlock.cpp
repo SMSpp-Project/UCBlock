@@ -7113,36 +7113,48 @@ void ThermalUnitBlock::set_path_solution( void )
  else
   off_arcs.emplace_back( from , T + 1 );
 
- auto in = []( const std::vector< std::pair< Index , Index > > & arcs ,
-               const std::pair< Index , Index > & a ) {
-  return( std::find( arcs.begin() , arcs.end() , a ) != arcs.end() );
+ // the runs are disjoint, hence an arc of each kind is identified by either
+ // of its two ends: on_end[ h ] is the end k of the on-arc ( h , k ), if
+ // any, on_start[ k ] the start h of the on-arc ( h , k ), off_end[ k ] the
+ // end h of the off-arc ( k , h ), Inf if there is no such arc
+ const Index none = Inf< Index >();
+ std::vector< Index > on_end( T + 2 , none ) , on_start( T + 2 , none );
+ std::vector< Index > off_end( T + 2 , none );
+ for( const auto & a : on_arcs ) {
+  on_end[ a.first ] = a.second;
+  on_start[ a.second ] = a.first;
+  }
+ for( const auto & a : off_arcs )
+  off_end[ a.first ] = a.second;
+
+ auto is_on_arc = [ & ]( Index h , Index k ) {
+  return( ( h < on_end.size() ) && ( on_end[ h ] == k ) );
+  };
+ auto is_off_arc = [ & ]( Index k , Index h ) {
+  return( ( k < off_end.size() ) && ( off_end[ k ] == h ) );
   };
 
  for( Index i = 0 ; i < v_commitment_plus.size() ; ++i )
-  v_commitment_plus[ i ].set_value( in( on_arcs , v_Y_plus[ i ] ) ? 1 : 0 );
+  v_commitment_plus[ i ].set_value(
+    is_on_arc( v_Y_plus[ i ].first , v_Y_plus[ i ].second ) ? 1 : 0 );
  for( Index i = 0 ; i < v_commitment_minus.size() ; ++i )
-  v_commitment_minus[ i ].set_value( in( off_arcs , v_Y_minus[ i ] ) ? 1
-                                                                      : 0 );
+  v_commitment_minus[ i ].set_value(
+    is_off_arc( v_Y_minus[ i ].first , v_Y_minus[ i ].second ) ? 1 : 0 );
 
  // the power of the run that contains t, on the Variable of that run, and
  // its square on the Variable of the perspective cuts
  auto pw = [ & ]( Index t ) { return( Pi[ t ].get_value() ); };
  auto sq = [ & ]( Index t ) { return( pw( t ) * pw( t ) ); };
  auto run_hk = [ & ]( Index t , Index h , Index k ) {
-  return( in( on_arcs , std::make_pair( h , k ) ) &&
-          ( h <= t + 1 ) && ( t + 1 <= k ) );
+  return( is_on_arc( h , k ) && ( h <= t + 1 ) && ( t + 1 <= k ) );
   };
  auto run_h = [ & ]( Index t , Index h ) {  // started at h - 1, on at t
-  for( const auto & a : on_arcs )
-   if( ( a.first == h ) && ( h <= t + 1 ) && ( t + 1 <= a.second ) )
-    return( true );
-  return( false );
+  return( ( h < on_end.size() ) && ( on_end[ h ] != none ) &&
+	   ( h <= t + 1 ) && ( t + 1 <= on_end[ h ] ) );
   };
  auto run_k = [ & ]( Index t , Index k ) {  // shut down at k, on at t
-  for( const auto & a : on_arcs )
-   if( ( a.second == k ) && ( a.first <= t + 1 ) && ( t + 1 <= k ) )
-    return( true );
-  return( false );
+  return( ( k < on_start.size() ) && ( on_start[ k ] != none ) &&
+	   ( on_start[ k ] <= t + 1 ) && ( t + 1 <= k ) );
   };
 
  for( Index j = 0 ; j < v_active_power_h_k.size() ; ++j ) {
